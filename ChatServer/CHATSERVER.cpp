@@ -18,8 +18,6 @@ void CHATSERVER::Run()
     SOCKET maxFd = m_listener;
 
     char buffer[BUF_SIZE + 1];
-    std::string data;
-
     while (true)
     {
         copyFds = masterFds;
@@ -36,15 +34,17 @@ void CHATSERVER::Run()
                     int len = sizeof(SOCKADDR_IN);
                     SOCKADDR_IN clientAddr;
                     SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
+                    FD_SET(clientSocket, &masterFds);
+                    maxFd = max(maxFd, clientSocket);
 
                     //Non-Blocking Socket
                     //u_long nonBlockingMode = 1;
                     //ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
 
-                    FD_SET(clientSocket, &masterFds);
-                    maxFd = max(maxFd, clientSocket);
+                    m_userTable.emplace(std::make_pair(clientSocket, clientSocket));
+                    m_userTable[clientSocket].id = std::to_string(clientSocket);
 
-                    std::cout << "Client Accept" << std::endl;
+                    std::cout << "Client Accept - " << clientSocket << std::endl;
                     send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
                 }
                 /// Recv
@@ -54,12 +54,15 @@ void CHATSERVER::Run()
                     if (recvLength == 0)
                     {
                         FD_CLR(readySoc, &masterFds);
+                        m_userTable.erase(readySoc);
                         closesocket(readySoc);
+                        std::cout << "Client Out - " << readySoc << std::endl;
                         continue;
                     }
 
 					buffer[recvLength] = '\0';
-					data.append(buffer);
+                    std::string& data = m_userTable[readySoc].data;
+                    data.append(buffer);
 
 					while (true)
 					{

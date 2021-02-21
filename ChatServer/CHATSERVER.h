@@ -7,11 +7,16 @@
 
 #include <iostream>
 #include <string>
+#include <map>
 #include <assert.h>
+
+#include "User.h"
 
 static constexpr int BUF_SIZE = 1024;
 class CHATSERVER
 {
+	typedef std::map<SOCKET, User> UserTable;
+
 public:
 
 	CHATSERVER() :
@@ -27,6 +32,7 @@ public:
 private:
 	SOCKADDR_IN m_addr;
 	SOCKET m_listener;
+	UserTable m_userTable;
 
 	bool InitWSA(short port);
 
