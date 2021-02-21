@@ -9,7 +9,7 @@ bool CHATSERVER::Initialize(short port)
 
 void CHATSERVER::Run()
 {
-    char welcomeMsg[]("æ»≥Á«œººø‰\n");
+    char welcomeMsg[]("=====================\r\nWelcome To ChatServer\r\n=====================\r\n");
     std::cout << "[Start Accept]" << std::endl;
 
     fd_set masterFds, copyFds;
@@ -37,6 +37,9 @@ void CHATSERVER::Run()
                     FD_SET(clientSocket, &masterFds);
                     maxFd = max(maxFd, clientSocket);
 
+                    std::cout << "Client Accept - " << clientSocket << std::endl;
+                    send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
+
                     //Non-Blocking Socket
                     //u_long nonBlockingMode = 1;
                     //ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
@@ -47,9 +50,6 @@ void CHATSERVER::Run()
                     {
                         m_userTable[clientSocket].m_Room = &Lobby;
                     }
-
-                    std::cout << "Client Accept - " << clientSocket << std::endl;
-                    send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
                 }
                 /// Recv
                 else
