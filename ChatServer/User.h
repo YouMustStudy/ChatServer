@@ -2,16 +2,19 @@
 #include <WinSock2.h>
 #include <string>
 
+class Room;
 class User
 {
+	typedef Room* RoomPtr;
+
 public:
-	User() : m_socket(INVALID_SOCKET), id(), data() {};
-	User(SOCKET socket) : m_socket(socket), id(), data() {};
+	User() : m_socket(INVALID_SOCKET), id(), data(), m_Room(nullptr) {};
+	User(SOCKET socket) : m_socket(socket), id(), data(), m_Room(nullptr) {};
 	~User() {};
 
-	bool operator<(const User& other) { return this->m_socket < other.m_socket; };
 public:
-	SOCKET m_socket;
 	std::string id;
+	RoomPtr m_Room;
+	SOCKET m_socket;
 	std::string data;
 };

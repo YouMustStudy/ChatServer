@@ -43,6 +43,10 @@ void CHATSERVER::Run()
 
                     m_userTable.emplace(std::make_pair(clientSocket, clientSocket));
                     m_userTable[clientSocket].id = std::to_string(clientSocket);
+                    if (true == Lobby.Enter(&m_userTable[clientSocket]))
+                    {
+                        m_userTable[clientSocket].m_Room = &Lobby;
+                    }
 
                     std::cout << "Client Accept - " << clientSocket << std::endl;
                     send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
@@ -51,17 +55,22 @@ void CHATSERVER::Run()
                 else
                 {
 					int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
+                    User& user = m_userTable[readySoc];
                     if (recvLength == 0)
                     {
                         FD_CLR(readySoc, &masterFds);
-                        m_userTable.erase(readySoc);
-                        closesocket(readySoc);
-                        std::cout << "Client Out - " << readySoc << std::endl;
+                        if (true == Lobby.Leave(&user))
+                        {
+                            user.m_Room = nullptr;
+                        }
+                        closesocket(user.m_socket);
+                        std::cout << "Client Out - " << user.id << std::endl;
+                        m_userTable.erase(user.m_socket);
                         continue;
                     }
 
 					buffer[recvLength] = '\0';
-                    std::string& data = m_userTable[readySoc].data;
+                    std::string& data = user.data;
                     data.append(buffer);
 
 					while (true)
@@ -69,7 +78,7 @@ void CHATSERVER::Run()
 						size_t cmdPos = data.find("\r\n");
 						if (std::string::npos != cmdPos)
 						{
-							ProcessPacket(readySoc, data.substr(0, cmdPos+2));
+							ProcessPacket(user, data.substr(0, cmdPos+2));
 							data = data.substr(cmdPos + 2);
 						}
 						else break;
@@ -118,7 +127,10 @@ bool CHATSERVER::InitWSA(short port)
     return true;
 }
 
-void CHATSERVER::ProcessPacket(int client, std::string data)
+void CHATSERVER::ProcessPacket(User& user, std::string data)
 {
-    send(client, data.c_str(), static_cast<int>(data.size()), 0);
+    if (user.m_Room)
+    {
+        user.m_Room->SendChat(&user, data);
+    }
 }
