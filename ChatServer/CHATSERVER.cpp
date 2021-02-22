@@ -73,9 +73,15 @@ void ChatServer::Run()
                     }
 
 					/// 버퍼 내 데이터를 문자열화. -> 차후 변경 필요(패킷)
-					buffer[recvLength] = '\0';
                     std::string& data = user->m_data;
-                    data.append(buffer);
+					for (int i = 0; i < recvLength; ++i)
+					{
+						if (buffer[i] == VK_BACK)
+							data.pop_back();
+						else
+							data.push_back(buffer[i]);
+					}
+                    
 
 					while (true)
 					{
