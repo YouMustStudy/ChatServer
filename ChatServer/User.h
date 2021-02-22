@@ -3,9 +3,10 @@
 #include <string>
 
 class Room;
+typedef Room* RoomPtr;
 class User
 {
-	typedef Room* RoomPtr;
+	
 
 public:
 	User() : m_socket(INVALID_SOCKET), id(), data(), m_Room(nullptr) {};
