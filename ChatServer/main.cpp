@@ -2,7 +2,7 @@
 
 int main()
 {
-	CHATSERVER chatServer;
+	ChatServer chatServer;
 	chatServer.Initialize(15600);
 	chatServer.Run();
 	chatServer.Terminate();

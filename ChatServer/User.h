@@ -1,9 +1,10 @@
 #pragma once
 #include <WinSock2.h>
 #include <string>
+#include <memory>
 
 class Room;
-typedef Room* RoomPtr;
+typedef std::shared_ptr<Room> RoomPtr;
 class User
 {
 	

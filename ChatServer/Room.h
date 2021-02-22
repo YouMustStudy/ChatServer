@@ -3,9 +3,11 @@
 #include <map>
 #include <string>
 #include <stack>
+#include <memory>
+#include <iostream>
 
 class User;
-typedef User* UserPtr;
+typedef std::shared_ptr<User> UserPtr;
 
 class RoomManager;
 class Room
@@ -25,24 +27,25 @@ public:
 	void SendChat(const UserPtr sender, const std::string& msg);
 
 	std::string GetUserList();
-
+	
 private:
 	int m_maxUser;
 	UserList m_userList;
 	std::string m_name;
 	int m_roomIdx;
+	static RoomManager* m_roomMgr;
 };
-typedef Room* RoomPtr;
 
-
+typedef std::shared_ptr<Room> RoomPtr;
 class RoomManager
 {
-	typedef std::map<int, Room> RoomTable;
+	typedef std::map<int, RoomPtr> RoomTable;
 
 public:
-	RoomManager() : m_genRoomCnt(), m_roomList() {};
+	RoomManager();
 	~RoomManager() {};
 
+	void Initialize();
 	RoomPtr CreateRoom(const std::string& name);
 	bool DestroyRoom(int idx);
 	RoomPtr GetRoom(int idx);
@@ -53,3 +56,4 @@ private:
 	RoomTable m_roomList;
 	std::stack<int> m_reuseRoomCnt;
 };
+

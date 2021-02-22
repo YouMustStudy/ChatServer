@@ -1,13 +1,20 @@
-#include "CHATSERVER.h"
+#include "ChatServer.h"
 
 
-bool CHATSERVER::Initialize(short port)
+bool ChatServer::Initialize(short port)
 {
     InitWSA(port);
+
+
+
+	m_lobby = m_roomMgr.CreateRoom("Lobby");
+	if (nullptr == m_lobby)
+		return false;
+
     return true;
 }
 
-void CHATSERVER::Run()
+void ChatServer::Run()
 {
     char welcomeMsg[]("=====================\r\nWelcome To ChatServer\r\n=====================\r\n");
     std::cout << "[Start Accept]" << std::endl;
@@ -44,33 +51,27 @@ void CHATSERVER::Run()
                     //u_long nonBlockingMode = 1;
                     //ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
 
-                    m_userTable.emplace(std::make_pair(clientSocket, clientSocket));
-                    m_userTable[clientSocket].id = std::to_string(clientSocket);
-                    if (true == Lobby.Enter(&m_userTable[clientSocket]))
+                    m_userTable.emplace(std::make_pair(clientSocket, new User(clientSocket)));
+                    m_userTable[clientSocket]->id = std::to_string(clientSocket);
+                    if (true == m_lobby->Enter(m_userTable[clientSocket]))
                     {
-                        m_userTable[clientSocket].m_Room = &Lobby;
+                        m_userTable[clientSocket]->m_Room = m_lobby;
                     }
                 }
                 /// Recv
                 else
                 {
 					int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
-                    User& user = m_userTable[readySoc];
+                    UserPtr user = m_userTable[readySoc];
                     if (recvLength == 0)
                     {
-                        FD_CLR(readySoc, &masterFds);
-                        if (true == Lobby.Leave(&user))
-                        {
-                            user.m_Room = nullptr;
-                        }
-                        closesocket(user.m_socket);
-                        std::cout << "Client Out - " << user.id << std::endl;
-                        m_userTable.erase(user.m_socket);
+						FD_CLR(readySoc, &masterFds);
+						DisconnectUser(user);
                         continue;
                     }
 
 					buffer[recvLength] = '\0';
-                    std::string& data = user.data;
+                    std::string& data = user->data;
                     data.append(buffer);
 
 					while (true)
@@ -89,13 +90,13 @@ void CHATSERVER::Run()
     }
 }
 
-void CHATSERVER::Terminate()
+void ChatServer::Terminate()
 {
     closesocket(m_listener);
     WSACleanup();
 }
 
-bool CHATSERVER::InitWSA(short port)
+bool ChatServer::InitWSA(short port)
 {
     std::cout << "[Initializing ChatServer" << " - " << port << "]" << std::endl;
     WSADATA wsaData;
@@ -127,10 +128,21 @@ bool CHATSERVER::InitWSA(short port)
     return true;
 }
 
-void CHATSERVER::ProcessPacket(User& user, std::string data)
+void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
-    if (user.m_Room)
+    if (nullptr != user->m_Room)
     {
-        user.m_Room->SendChat(&user, data);
+        user->m_Room->SendChat(user, data);
     }
+}
+
+void ChatServer::DisconnectUser(UserPtr& user)
+{
+	if (true == user->m_Room->Leave(user))
+	{
+		user->m_Room = nullptr;
+	}
+	closesocket(user->m_socket);
+	std::cout << "Client Out - " << user->id << std::endl;
+	m_userTable.erase(user->m_socket);
 }

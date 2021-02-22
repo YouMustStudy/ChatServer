@@ -14,18 +14,18 @@
 #include "User.h"
 
 static constexpr int BUF_SIZE = 1024;
-class CHATSERVER
+class ChatServer
 {
-	typedef std::map<SOCKET, User> UserTable;
+	typedef std::map<SOCKET, UserPtr> UserTable;
 
 public:
 
-	CHATSERVER() :
+	ChatServer() :
 		m_addr(),
 		m_listener(INVALID_SOCKET),
-		Lobby("Lobby")
+		m_lobby(nullptr)
 	{};
-	~CHATSERVER() {};
+	~ChatServer() {};
 
 	bool Initialize(short port);
 	void Run();
@@ -35,9 +35,12 @@ private:
 	SOCKADDR_IN m_addr;
 	SOCKET m_listener;
 	UserTable m_userTable;
-	Room Lobby;
+	RoomManager m_roomMgr;
+	RoomPtr m_lobby;
 
 	bool InitWSA(short port);
 
-	void ProcessPacket(User& user, std::string data);
+	void ProcessPacket(UserPtr& user, std::string data);
+
+	void DisconnectUser(UserPtr& user);
 };
