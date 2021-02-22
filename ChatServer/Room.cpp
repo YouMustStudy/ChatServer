@@ -4,12 +4,14 @@
 constexpr int LOBBY = 0;
 
 RoomManager* Room::m_roomMgr = nullptr;
+
 bool Room::Enter(const UserPtr user)
 {
-	if (m_maxUser > m_userList.size())
+	/// 방의 입장인원 확인 후 입장
+	if (m_maxUser > m_userTable.size())
 	{
-		m_userList.emplace(user);
-		NotifyAll("Welcome " + user->id + "!!");
+		m_userTable.emplace(user);
+		NotifyAll("Welcome " + user->m_name + "!!");
 		return true;
 	}
 	return false;
@@ -17,15 +19,14 @@ bool Room::Enter(const UserPtr user)
 
 bool Room::Leave(const UserPtr user)
 {
-	if (1 == m_userList.erase(user))
+	if (1 == m_userTable.erase(user))
 	{
-		NotifyAll("ByeBye " + user->id);
+		NotifyAll("ByeBye " + user->m_name); /// 유저의 퇴장을 알림
 
-		if (true == m_userList.empty())
+		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
 		{
 			m_roomMgr->DestroyRoom(m_roomIdx);
 		}
-
 		return true;
 	}
 	return false;
@@ -33,8 +34,9 @@ bool Room::Leave(const UserPtr user)
 
 void Room::NotifyAll(const std::string& msg)
 {
-	std::string completeMsg(std::string("[Room ") + m_name + std::string("] : ") + msg + "\r\n");
-	for (auto& userPtr : m_userList)
+	/// [Room Name] - 메세지
+	std::string completeMsg(std::string("[Room ") + m_name + std::string("] - ") + msg + "\r\n");
+	for (auto& userPtr : m_userTable)
 	{
 		send(userPtr->m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
 	}
@@ -42,8 +44,9 @@ void Room::NotifyAll(const std::string& msg)
 
 void Room::SendChat(const UserPtr sender, const std::string& msg)
 {
-	std::string completeMsg(std::string("[") + sender->id + std::string("] : ") + msg);
-	for (auto& userPtr: m_userList)
+	/// [유저ID] : 메세지
+	std::string completeMsg(std::string("[") + sender->m_name + std::string("] : ") + msg);
+	for (auto& userPtr: m_userTable)
 	{
 		if(userPtr != sender)
 			send(userPtr->m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
@@ -52,40 +55,49 @@ void Room::SendChat(const UserPtr sender, const std::string& msg)
 
 std::string Room::GetUserList()
 {
+	/// ==유저 목록 ==
+	/// abc
+	/// zipzip
+	/// hungry
+	/// ...
 	std::string UserNameList{"==유저 목록==\r\n"};
-	for (const auto& user : m_userList)
+	for (const auto& user : m_userTable)
 	{
-		UserNameList += user->id + "\r\n";
+		UserNameList += user->m_name + "\r\n";
 	}
 	return UserNameList;
 }
 
-RoomManager::RoomManager() : m_genRoomCnt(), m_roomList()
+RoomManager::RoomManager() : m_genRoomCnt(), m_roomTable()
 {
 	Initialize();
 }
 
 void RoomManager::Initialize()
 {
+	/// 방 삭제 호출용 포인터 등록
 	Room::m_roomMgr = this;
 }
 
 RoomPtr RoomManager::CreateRoom(const std::string & name)
 {
 	int roomIdx{0};
-	if (false == m_reuseRoomCnt.empty())
+	if (false == m_reuseRoomCnt.empty())	/// 스택에서 재사용 가능한 인덱스 있는지 확인
 	{
 		roomIdx = m_reuseRoomCnt.top();
 		m_reuseRoomCnt.pop();
 	}
 	else
 	{
-		roomIdx = m_genRoomCnt++;
+		roomIdx = m_genRoomCnt++;			/// 없으면 새로 발급
 	}
 
-	m_roomList.emplace(std::make_pair(roomIdx, new Room(name, roomIdx)));
-	std::cout << "Room " << name << " is Created" << std::endl;
-	return m_roomList[roomIdx];
+	m_roomTable.emplace(std::make_pair(roomIdx, new Room(name, roomIdx)));
+	if (nullptr != m_roomTable[roomIdx])
+	{
+		std::cout << "Room " << name << " is Created" << std::endl;
+	}
+	return m_roomTable[roomIdx];
 }
 
 bool RoomManager::DestroyRoom(int idx)
@@ -95,18 +107,18 @@ bool RoomManager::DestroyRoom(int idx)
 		return false;
 	}
 
-	if (0 == m_roomList.count(idx)) /// 없는 방 인덱스로 삭제 시도
+	if (0 == m_roomTable.count(idx)) /// 없는 방 인덱스로 삭제 방지
 	{
 		return false;
 	}
 
-	if (m_roomList[idx]->m_userList.size() > 0) /// 유저가 남아있으면 지우면 안됨
+	if (m_roomTable[idx]->m_userTable.size() > 0) /// 유저가 남아있으면 지우면 안됨
 	{
 		return false;
 	}
 
-	std::string roomName = m_roomList[idx]->m_name;
-	size_t success = m_roomList.erase(idx);
+	std::string roomName = m_roomTable[idx]->m_name;
+	size_t success = m_roomTable.erase(idx);
 	if (1 == success)
 	{
 		std::cout << "Room " << roomName << " is destroyed" << std::endl;
@@ -118,18 +130,17 @@ bool RoomManager::DestroyRoom(int idx)
 
 RoomPtr RoomManager::GetRoom(int idx)
 {
-	if (0 == m_roomList.count(idx))
+	if (0 == m_roomTable.count(idx))
 	{
 		return nullptr;
 	}
-
-	return m_roomList[idx];
+	return m_roomTable[idx];
 }
 
 std::string RoomManager::GetRoomList()
 {
 	std::string roomNameList;
-	for (const auto& roomPair : m_roomList)
+	for (const auto& roomPair : m_roomTable)
 	{
 		roomNameList += "[" + std::to_string(roomPair.first) + "]" + roomPair.second->m_name + "\r\n";
 	}

@@ -5,8 +5,7 @@ bool ChatServer::Initialize(short port)
 {
     InitWSA(port);
 
-
-
+	/// 로비 생성
 	m_lobby = m_roomMgr.CreateRoom("Lobby");
 	if (nullptr == m_lobby)
 		return false;
@@ -52,7 +51,7 @@ void ChatServer::Run()
                     //ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
 
                     m_userTable.emplace(std::make_pair(clientSocket, new User(clientSocket)));
-                    m_userTable[clientSocket]->id = std::to_string(clientSocket);
+                    m_userTable[clientSocket]->m_name = std::to_string(clientSocket);
                     if (true == m_lobby->Enter(m_userTable[clientSocket]))
                     {
                         m_userTable[clientSocket]->m_Room = m_lobby;
@@ -61,22 +60,26 @@ void ChatServer::Run()
                 /// Recv
                 else
                 {
+					/// 데이터는 완전한 형태로 온다고 가정, timeout 혹은 논블럭킹으로 교체 필요.
 					int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
                     UserPtr user = m_userTable[readySoc];
-                    if (recvLength == 0)
+					assert(user);
+
+                    if (recvLength == 0) ///종료처리
                     {
 						FD_CLR(readySoc, &masterFds);
 						DisconnectUser(user);
                         continue;
                     }
 
+					/// 버퍼 내 데이터를 문자열화. -> 차후 변경 필요(패킷)
 					buffer[recvLength] = '\0';
-                    std::string& data = user->data;
+                    std::string& data = user->m_data;
                     data.append(buffer);
 
 					while (true)
 					{
-						size_t cmdPos = data.find("\r\n");
+						size_t cmdPos = data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
 						if (std::string::npos != cmdPos)
 						{
 							ProcessPacket(user, data.substr(0, cmdPos+2));
@@ -143,6 +146,6 @@ void ChatServer::DisconnectUser(UserPtr& user)
 		user->m_Room = nullptr;
 	}
 	closesocket(user->m_socket);
-	std::cout << "Client Out - " << user->id << std::endl;
+	std::cout << "Client Out - " << user->m_name << std::endl;
 	m_userTable.erase(user->m_socket);
 }
