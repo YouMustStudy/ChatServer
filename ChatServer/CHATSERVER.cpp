@@ -18,79 +18,120 @@ void ChatServer::Run()
 	char welcomeMsg[]("=====================\r\nWelcome To ChatServer\r\n=====================\r\n");
 	std::cout << "[Start Accept]" << std::endl;
 
-	fd_set masterFds, copyFds;
-	FD_ZERO(&masterFds);
-	FD_SET(m_listener, &masterFds);
-	SOCKET maxFd = m_listener;
+	std::deque<SOCKET> recvSockets;
+	recvSockets.emplace_back(m_listener);
+	std::vector<fd_set> masterFdSets;
+	std::vector<SOCKET> maxFds;
+	bool dirtyFlag = true;
+
+	masterFdSets.emplace_back();
+	maxFds.emplace_back(0);
 
 	char buffer[BUF_SIZE + 1];
+	
+	timeval timeout{ 0, 0 };
+	fd_set copyFdSet;
 	while (true)
 	{
-		copyFds = masterFds;
-		int numFd = select(static_cast<int>(maxFd) + 1, &copyFds, 0, 0, 0);
-		assert(numFd > 0);
-
-		for (int readySoc = 0; readySoc < maxFd + 1; ++readySoc)
+		int loopCnt = (static_cast<int>(recvSockets.size()) - 1) / FD_SETSIZE + 1;
+		if (true == dirtyFlag)
 		{
-			if (FD_ISSET(readySoc, &copyFds))
+			while (masterFdSets.size() < loopCnt)
 			{
-				/// Accept
-				if (m_listener == readySoc)
+				masterFdSets.emplace_back();
+				maxFds.emplace_back(0);
+			}
+
+			for (int fdSetIdx = 0; fdSetIdx < masterFdSets.size(); ++fdSetIdx)
+			{
+				FD_ZERO(&masterFdSets[fdSetIdx]);
+				maxFds[fdSetIdx] = 0;
+				for (int socIdx = FD_SETSIZE*fdSetIdx; socIdx < recvSockets.size(); ++socIdx)
 				{
-					int len = sizeof(SOCKADDR_IN);
-					SOCKADDR_IN clientAddr;
-					SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
-					FD_SET(clientSocket, &masterFds);
-					maxFd = max(maxFd, clientSocket);
-
-					std::cout << "Client Accept - " << clientSocket << std::endl;
-					send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
-
-					//Non-Blocking Socket
-					//u_long nonBlockingMode = 1;
-					//ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
-
-					m_userTable.emplace(std::make_pair(clientSocket, new User(clientSocket)));
-					m_userTable[clientSocket]->m_name = std::to_string(clientSocket);
-					if (true == m_lobby->Enter(m_userTable[clientSocket]))
-					{
-						m_userTable[clientSocket]->m_room = m_lobby;
-					}
+					FD_SET(recvSockets[socIdx], &masterFdSets[fdSetIdx]);
+					maxFds[fdSetIdx] = max(maxFds[fdSetIdx], recvSockets[socIdx]);
 				}
-				/// Recv
-				else
+			}
+			dirtyFlag = false;
+		}
+
+		for (int fdSetNum = 0; fdSetNum < loopCnt; ++fdSetNum)
+		{
+			copyFdSet = masterFdSets[fdSetNum];
+			int numFd = select(static_cast<int>(maxFds[fdSetNum]) + 1, &copyFdSet, 0, 0, &timeout);
+			assert(numFd >= 0);
+			if (numFd == 0)
+			{
+				continue;
+			}
+
+			for (int readySoc = 0; readySoc < maxFds[fdSetNum] + 1; ++readySoc)
+			{
+				if (FD_ISSET(readySoc, &copyFdSet))
 				{
-					/// 데이터는 완전한 형태로 온다고 가정, timeout 혹은 논블럭킹으로 교체 필요.
-					int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
-					UserPtr user = m_userTable[readySoc];
-					assert(user);
-
-					if (recvLength == 0) ///종료처리
+					/// Accept
+					if (m_listener == readySoc)
 					{
-						FD_CLR(readySoc, &masterFds);
-						DisconnectUser(user);
-						continue;
-					}
+						int len = sizeof(SOCKADDR_IN);
+						SOCKADDR_IN clientAddr;
+						SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
 
-					/// 버퍼 내 데이터를 문자열화. -> 차후 변경 필요(패킷)
-					std::string& data = user->m_data;
-					for (int i = 0; i < recvLength; ++i)
-					{
-						if (buffer[i] == VK_BACK)
-							data.pop_back();
-						else
-							data.push_back(buffer[i]);
-					}
+						/// 소켓 리스트에 등록
+						recvSockets.emplace_back(clientSocket);
+						dirtyFlag = true;
 
-					while (true)
-					{
-						size_t cmdPos = data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
-						if (std::string::npos != cmdPos)
+						std::cout << "Client Accept - " << clientSocket << std::endl;
+						send(clientSocket, welcomeMsg, int(strlen(welcomeMsg)) + 1, 0);
+
+						//Non-Blocking Socket
+						//u_long nonBlockingMode = 1;
+						//ioctlsocket(clientSocket, FIONBIO, &nonBlockingMode);
+
+						m_userTable.emplace(std::make_pair(clientSocket, new User(clientSocket)));
+						m_userTable[clientSocket]->m_name = std::to_string(clientSocket);
+						if (true == m_lobby->Enter(m_userTable[clientSocket]))
 						{
-							ProcessPacket(user, data.substr(0, cmdPos));
-							data = data.substr(cmdPos + 2);
+							m_userTable[clientSocket]->m_room = m_lobby;
 						}
-						else break;
+					}
+					/// Recv
+					else
+					{
+						/// 데이터는 완전한 형태로 온다고 가정, timeout 혹은 논블럭킹으로 교체 필요.
+						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
+						UserPtr user = m_userTable[readySoc];
+						assert(user);
+
+						if (recvLength == 0) ///종료처리
+						{
+							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
+							assert(recvSockets.end() != delPos);
+							recvSockets.erase(delPos);
+							dirtyFlag = true;
+							DisconnectUser(user);
+							continue;
+						}
+
+						/// 버퍼 내 데이터를 문자열화. -> 차후 변경 필요(패킷)
+						std::string& data = user->m_data;
+						for (int i = 0; i < recvLength; ++i)
+						{
+							if (buffer[i] == VK_BACK)
+								data.pop_back();
+							else
+								data.push_back(buffer[i]);
+						}
+
+						while (true)
+						{
+							size_t cmdPos = data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
+							if (std::string::npos != cmdPos)
+							{
+								ProcessPacket(user, data.substr(0, cmdPos));
+								data = data.substr(cmdPos + 2);
+							}
+							else break;
+						}
 					}
 				}
 			}
@@ -249,7 +290,8 @@ void ChatServer::ProcessGetUserList(const UserPtr &user)
 
 void ChatServer::ProcessGetRoomList(const UserPtr & user)
 {
-
+	std::string& roomList = m_roomMgr.GetRoomList();
+	user->SendChat(roomList);
 }
 
 void ChatServer::ProcessError(UserPtr & user)

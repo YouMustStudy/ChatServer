@@ -8,7 +8,9 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <deque>
 #include <assert.h>
+#include <algorithm>
 
 #include "Room.h"
 #include "User.h"
@@ -22,7 +24,6 @@ class ChatServer
 public:
 
 	ChatServer() :
-		m_addr(),
 		m_listener(INVALID_SOCKET),
 		m_lobby(nullptr)
 	{};
@@ -36,7 +37,6 @@ public:
 	void Terminate();
 
 private:
-	SOCKADDR_IN m_addr;			/// ??? 로컬로 빼던가 처리
 	SOCKET m_listener;			/// Listen 소켓
 	UserTable m_userTable;		/// 유저 테이블
 	RoomManager m_roomMgr;		/// 룸 매니저
