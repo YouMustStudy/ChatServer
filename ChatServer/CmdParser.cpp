@@ -26,6 +26,7 @@ int CmdParser::Parse(std::string &data, std::smatch& param)
 
 void CmdParser::Initialize()
 {
+	m_regexs[CMD_HELP] = std::regex(R"(^\/help$)");
 	m_regexs[CMD_QUIT] = std::regex(R"(^\/quit$)");
 	m_regexs[CMD_ROOMLIST] = std::regex(R"(^\/roomlist$)");
 	m_regexs[CMD_USERLIST] = std::regex(R"(^\/userlist$)");

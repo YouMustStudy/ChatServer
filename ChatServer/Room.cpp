@@ -81,7 +81,7 @@ std::string Room::GetUserList()
 	std::string userNameList{"==유저 목록==\r\n"};
 	for (const auto& user : m_userTable)
 	{
-		userNameList += user->GetName() + "\r\n";
+		userNameList += "[" + user->GetName() + "]" + "\r\n";
 	}
 	return userNameList;
 }

@@ -8,6 +8,7 @@
 enum CMD
 {
 	CMD_CHAT = -1,
+	CMD_HELP,
 	CMD_QUIT,
 	CMD_ROOMLIST,
 	CMD_USERLIST,

@@ -87,6 +87,7 @@ void ChatServer::Run()
 
 						m_userTable.emplace(std::make_pair(clientSocket, new User(clientSocket)));
 						m_userTable[clientSocket]->SetName(std::to_string(clientSocket));
+						ProcessHelp(m_userTable[clientSocket]);
 						m_lobby->Enter(m_userTable[clientSocket]);
 					}
 					/// Recv
@@ -170,6 +171,10 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 	int cmd = m_cmdParser.Parse(data, param);
 	switch (cmd)
 	{
+	case CMD_HELP:
+		ProcessHelp(user);
+		break;
+
 	case CMD_CHAT:
 		ProcessChat(user, data);
 		break;
@@ -291,7 +296,21 @@ void ChatServer::ProcessGetRoomList(const UserPtr & user)
 	user->SendChat(roomList);
 }
 
-void ChatServer::ProcessError(UserPtr & user)
+void ChatServer::ProcessHelp(const UserPtr & user)
 {
-	user->SendChat("잘못된 명령어 형식입니다.");
+	static std::string helpCmd{
+"== 명령어 목록 == \r\n\
+[입장] /join [방번호]\r\n\
+[퇴장] /quit\r\n\
+[쪽지] /msg [상대방] [메세지] - 미구현\r\n\
+[방 생성] /create [방이름] [최대인원] - 미구현\r\n\
+[방 목록] /roomlist\r\n\
+[유저 목록] /userlist\r\n"	};
+	user->SendChat(helpCmd);
+}
+
+void ChatServer::ProcessError(const UserPtr & user)
+{
+	static std::string wrongCmd{ "잘못된 명령어 형식입니다." };
+	user->SendChat(wrongCmd);
 }
