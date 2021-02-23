@@ -19,6 +19,10 @@ void ChatServer::Run()
 	char welcomeMsg[]("=====================\r\nWelcome To ChatServer\r\n=====================\r\n");
 	std::cout << "[Start Accept]" << std::endl;
 
+	/// Recv는 동기적으로 발생한다.
+	/// Accept, Disconnect 또한 동기적으로 발생.
+	/// => Recv용 소켓은 지역변수로 관리 가능.
+	
 	std::deque<SOCKET> recvSockets;
 	recvSockets.emplace_back(m_listener);
 	std::vector<fd_set> masterFdSets;
@@ -30,6 +34,10 @@ void ChatServer::Run()
 
 	char buffer[BUF_SIZE + 1];
 	
+	///select는 64인 제한이 있음.
+	///64개 단위로 select를 반복적으로 호출, 인원제한을 해제한다.
+	///매번 fd_set을 갱신하는 것은 오버헤드가 있으므로
+	///갱신이 필요한 상황(Accept, Disconnect)에서만 dirtyFlag를 세팅, 다음 순회에서 갱신한다.
 	timeval timeout{ 0, 0 };
 	fd_set copyFdSet;
 	while (true)
