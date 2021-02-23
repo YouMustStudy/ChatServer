@@ -7,8 +7,10 @@ RoomManager* Room::m_roomMgr = nullptr;
 
 void Room::SetWeakPtr(RoomPtr &myself)
 {
-	if(myself.get() == this)
+	if (myself.get() == this) 
+	{
 		m_selfPtr = myself;
+	}
 }
 
 bool Room::Enter(UserPtr user)
@@ -17,8 +19,8 @@ bool Room::Enter(UserPtr user)
 	if (m_maxUser > m_userTable.size())
 	{
 		m_userTable.emplace(user);
-		user->m_room = m_selfPtr.lock();
-		NotifyAll("Welcome " + user->m_name + "!!");
+		user->SetRoom(m_selfPtr.lock());
+		NotifyAll("Welcome " + user->GetName() + "!!");
 		return true;
 	}
 	return false;
@@ -28,8 +30,11 @@ bool Room::Leave(const UserPtr user)
 {
 	if (1 == m_userTable.erase(user))
 	{
-		if(user->m_room = m_selfPtr.lock())
-			user->m_room = nullptr;
+		RoomPtr userRoom = user->GetRoom();
+		if (userRoom = m_selfPtr.lock())
+		{
+			user->SetRoom(nullptr);
+		}
 
 		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
 		{
@@ -37,7 +42,7 @@ bool Room::Leave(const UserPtr user)
 		}
 		else
 		{
-			NotifyAll("ByeBye " + user->m_name); /// 유저의 퇴장을 알림
+			NotifyAll("ByeBye " + user->GetName()); /// 유저의 퇴장을 알림
 		}
 		return true;
 	}
@@ -48,21 +53,21 @@ bool Room::Leave(const UserPtr user)
 void Room::NotifyAll(const std::string& msg)
 {
 	/// [Room Name] - 메세지
-	std::string completeMsg(std::string("[Room ") + m_name + std::string("] - ") + msg + "\r\n");
+	std::string completeMsg(std::string("[Room ") + m_name + std::string("] - ") + msg);
 	for (auto& userPtr : m_userTable)
 	{
-		send(userPtr->m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
+		userPtr->SendChat(completeMsg);
 	}
 }
 
 void Room::SendChat(const UserPtr sender, const std::string& msg)
 {
 	/// [유저ID] : 메세지
-	std::string completeMsg(std::string("[") + sender->m_name + std::string("] : ") + msg);
+	std::string completeMsg(std::string("[") + sender->GetName() + std::string("] : ") + msg);
 	for (auto& userPtr: m_userTable)
 	{
 		if (userPtr != sender)
-			userPtr->SendChat(msg);
+			userPtr->SendChat(completeMsg);
 	}
 }
 
@@ -73,12 +78,12 @@ std::string Room::GetUserList()
 	/// zipzip
 	/// hungry
 	/// ...
-	std::string UserNameList{"==유저 목록==\r\n"};
+	std::string userNameList{"==유저 목록==\r\n"};
 	for (const auto& user : m_userTable)
 	{
-		UserNameList += user->m_name + "\r\n";
+		userNameList += user->GetName() + "\r\n";
 	}
-	return UserNameList;
+	return userNameList;
 }
 
 RoomManager::RoomManager() : m_genRoomCnt(), m_roomTable()
@@ -152,10 +157,10 @@ RoomPtr RoomManager::GetRoom(int idx)
 
 std::string RoomManager::GetRoomList()
 {
-	std::string roomNameList;
+	std::string roomNameList{ "==방 목록==\r\n" };
 	for (const auto& roomPair : m_roomTable)
 	{
-		roomNameList += "[" + std::to_string(roomPair.first) + "]" + roomPair.second->m_name + "\r\n";
+		roomNameList += "[" + std::to_string(roomPair.first) + "] " + roomPair.second->m_name + "\r\n";
 	}
 	return roomNameList;
 }
