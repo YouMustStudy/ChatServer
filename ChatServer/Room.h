@@ -18,6 +18,7 @@ Room
 class Room
 {
 	friend RoomManager;
+	typedef std::shared_ptr<Room> RoomPtr;
 	typedef std::set<UserPtr> UserTable;
 
 public:
@@ -25,8 +26,10 @@ public:
 	Room(const std::string& name, int idx) : m_userTable(), m_maxUser(INT_MAX), m_name(name), m_roomIdx(idx), m_destroyed(false) {};
 	~Room() {};
 
+	/// 자기 자신의 weak_ptr을 저장하는 함수, 인자 : myself - 본인의 shared_ptr
+	void SetWeakPtr(RoomPtr& myself);
 	///유저를 방에 입장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
-	bool Enter(const UserPtr user);
+	bool Enter(UserPtr user);
 	///유저를 방에서 퇴장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
 	bool Leave(const UserPtr user);
 	///방 내의 모든 유저들에게 공지 전송. 인자 : msg - 보낼 메세지
@@ -35,13 +38,14 @@ public:
 	void SendChat(const UserPtr sender, const std::string& msg);
 	///방 내의 모든 유저 이름 반환. 반환 : 방 내의 유저 이름들
 	std::string GetUserList();
-	
+
 private:
 	UserTable m_userTable;				/// 방 내 유저 리스트
 	std::string m_name;					/// 방 이름
 	int m_roomIdx;						/// 방의 고유번호
 	int m_maxUser;						/// 방 최대인원 수
 	bool m_destroyed;					/// 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
+	std::weak_ptr<Room> m_selfPtr;		/// 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
 
 	static RoomManager* m_roomMgr;		/// 방 삭제 호출 포인터
 };

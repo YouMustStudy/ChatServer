@@ -5,12 +5,19 @@ constexpr int LOBBY = 0;
 
 RoomManager* Room::m_roomMgr = nullptr;
 
-bool Room::Enter(const UserPtr user)
+void Room::SetWeakPtr(RoomPtr &myself)
+{
+	if(myself.get() == this)
+		m_selfPtr = myself;
+}
+
+bool Room::Enter(UserPtr user)
 {
 	/// 방의 입장인원 확인 후 입장
 	if (m_maxUser > m_userTable.size())
 	{
 		m_userTable.emplace(user);
+		user->m_room = m_selfPtr.lock();
 		NotifyAll("Welcome " + user->m_name + "!!");
 		return true;
 	}
@@ -21,14 +28,20 @@ bool Room::Leave(const UserPtr user)
 {
 	if (1 == m_userTable.erase(user))
 	{
-		NotifyAll("ByeBye " + user->m_name); /// 유저의 퇴장을 알림
+		if(user->m_room = m_selfPtr.lock())
+			user->m_room = nullptr;
 
 		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
 		{
 			m_roomMgr->DestroyRoom(m_roomIdx);
 		}
+		else
+		{
+			NotifyAll("ByeBye " + user->m_name); /// 유저의 퇴장을 알림
+		}
 		return true;
 	}
+
 	return false;
 }
 
@@ -48,8 +61,8 @@ void Room::SendChat(const UserPtr sender, const std::string& msg)
 	std::string completeMsg(std::string("[") + sender->m_name + std::string("] : ") + msg);
 	for (auto& userPtr: m_userTable)
 	{
-		if(userPtr != sender)
-			send(userPtr->m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
+		if (userPtr != sender)
+			userPtr->SendChat(msg);
 	}
 }
 

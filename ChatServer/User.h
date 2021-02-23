@@ -12,13 +12,15 @@ User
 class User
 {
 public:
-	User() : m_socket(INVALID_SOCKET), m_name(), m_data(), m_Room(nullptr) {};
-	User(SOCKET socket) : m_socket(socket), m_name(), m_data(), m_Room(nullptr) {};
+	User() : m_socket(INVALID_SOCKET), m_name(), m_data(), m_room(nullptr) {};
+	User(SOCKET socket) : m_socket(socket), m_name(), m_data(), m_room(nullptr) {};
 	~User() {};
+	void SendChat(const std::string& msg);
+	RoomPtr GetRoom();
 
 public:
 	std::string m_name;		/// 유저 닉네임
-	RoomPtr m_Room;			/// 입장한 방 포인터
+	RoomPtr m_room;			/// 입장한 방 포인터
 	SOCKET m_socket;
 	std::string m_data;
 };

@@ -1,11 +1,27 @@
 #include "CmdParser.h"
-CmdParser::CmdParser()
+CmdParser::CmdParser() : m_regexs(CMD_COUNT-1)
 {
+	Initialize();
 }
-
 
 CmdParser::~CmdParser()
 {
+}
+
+int CmdParser::Parse(std::string &data, std::smatch& param)
+{
+	if (data[0] != '/')
+	{
+		return CMD_CHAT;
+	}
+	for (int cmd = 0; cmd < m_regexs.size(); ++cmd)
+	{
+		if (true == std::regex_match(data, param, m_regexs[cmd]))
+		{
+			return cmd;
+		}
+	}
+	return CMD_ERROR;
 }
 
 void CmdParser::Initialize()

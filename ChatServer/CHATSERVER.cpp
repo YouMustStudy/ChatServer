@@ -54,7 +54,7 @@ void ChatServer::Run()
 					m_userTable[clientSocket]->m_name = std::to_string(clientSocket);
 					if (true == m_lobby->Enter(m_userTable[clientSocket]))
 					{
-						m_userTable[clientSocket]->m_Room = m_lobby;
+						m_userTable[clientSocket]->m_room = m_lobby;
 					}
 				}
 				/// Recv
@@ -87,7 +87,7 @@ void ChatServer::Run()
 						size_t cmdPos = data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
 						if (std::string::npos != cmdPos)
 						{
-							ProcessPacket(user, data.substr(0, cmdPos + 2));
+							ProcessPacket(user, data.substr(0, cmdPos));
 							data = data.substr(cmdPos + 2);
 						}
 						else break;
@@ -138,19 +138,121 @@ bool ChatServer::InitWSA(short port)
 
 void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
-	if (nullptr != user->m_Room)
+	std::smatch param;
+	int cmd = m_cmdParser.Parse(data, param);
+	switch (cmd)
 	{
-		user->m_Room->SendChat(user, data);
+	case CMD_CHAT:
+		ProcessChat(user, data);
+		break;
+
+	case CMD_JOIN:
+		ProcessJoin(user, std::stoi(param[1].str()));
+		break;
+
+	case CMD_QUIT:
+		ProcessQuit(user);
+		break;
+
+	case CMD_MSG:
+		ProcessMsg(user, param[1].str(), param[2].str());
+		break;
+
+	case CMD_USERLIST:
+		ProcessGetUserList(user);
+		break;
+
+	case CMD_ROOMLIST:
+		ProcessGetRoomList(user);
+		break;
+
+	case CMD_ERROR:
+		ProcessError(user);
+		break;
 	}
 }
 
 void ChatServer::DisconnectUser(UserPtr& user)
 {
-	if (true == user->m_Room->Leave(user))
-	{
-		user->m_Room = nullptr;
-	}
+	RoomPtr curRoom = user->GetRoom();
+	curRoom->Leave(user);
+
+	/// 수정 필요(캡슐화)
 	closesocket(user->m_socket);
 	std::cout << "Client Out - " << user->m_name << std::endl;
 	m_userTable.erase(user->m_socket);
+}
+
+void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
+{
+	if (nullptr == enterRoom)
+	{
+		return;
+	}
+	RoomPtr oldRoomPtr = user->m_room;
+	if (true == enterRoom->Enter(user))
+	{
+		oldRoomPtr->Leave(user);
+	}
+}
+
+void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
+{
+	const RoomPtr roomPtr = sender->GetRoom();
+	if (nullptr != roomPtr)
+	{
+		roomPtr->SendChat(sender, msg);
+	}
+}
+
+void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
+{
+	RoomPtr newRoomPtr = m_roomMgr.GetRoom(roomIdx);
+	if (nullptr == newRoomPtr)
+	{
+		user->SendChat("없는 방입니다.");
+		return;
+	}
+	ExchangeRoom(user, newRoomPtr);
+}
+
+void ChatServer::ProcessQuit(UserPtr &user)
+{
+	if (m_lobby == user->m_room)
+	{
+		user->SendChat("로비에서는 나가실 수 없습니다.");
+		return;
+	}
+	ExchangeRoom(user, m_lobby);
+}
+
+void ChatServer::ProcessMsg(const UserPtr& sender, const UserPtr& receiver, const std::string& msg)
+{
+	sender->SendChat("로비에서는 나가실 수 없습니다.");
+}
+
+void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
+{
+	//UserPtr receiver = 
+	sender->SendChat("로비에서는 나가실 수 없습니다.");
+}
+
+void ChatServer::ProcessGetUserList(const UserPtr &user)
+{
+	const RoomPtr roomPtr = user->GetRoom();
+	if (nullptr != roomPtr)
+	{
+		std::string& userList = roomPtr->GetUserList();
+		user->SendChat(userList);
+	}
+}
+
+void ChatServer::ProcessGetRoomList(const UserPtr & user)
+{
+
+}
+
+void ChatServer::ProcessError(UserPtr & user)
+{
+	user->SendChat("잘못된 명령어 형식입니다.");
 }
