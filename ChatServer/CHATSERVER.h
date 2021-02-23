@@ -67,6 +67,7 @@ private:
 	void ProcessGetUserList(const UserPtr& user);
 	/// 서버 내 방 목록 전송. 인자 : user - 요청 유저의 포인터
 	void ProcessGetRoomList(const UserPtr& user);
+	/// 방을 생성한 후 유저를 해당 방으로 입장시킨다. 인자 : user - 요청 유저의 포인터, roomName - 생성할 방의 이름, maxUser - 방의 최대인원 수, 반환 : 생성된 방의 포인터
 	void ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser);
 	/// 도움 메세지 전송. user- 요청 유저의 포인터
 	void ProcessHelp(const UserPtr& user);

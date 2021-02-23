@@ -98,6 +98,10 @@ void RoomManager::Initialize()
 
 RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
 {
+	if (maxUser < 1)
+	{
+		return nullptr;
+	}
 	int roomIdx{0};
 	if (false == m_reuseRoomCnt.empty())	/// 스택에서 재사용 가능한 인덱스 있는지 확인
 	{

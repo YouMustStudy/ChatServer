@@ -205,9 +205,13 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 	case CMD_CREATEROOM:
 	{
 		int maxUser = std::stoi(param[2].str());
-		if (maxUser > 0)
+		if (maxUser > 1)
 		{
 			ProcessCreateRoom(user, param[1].str(), maxUser);
+		}
+		else
+		{
+			user->SendChat("방의 최대인원 수는 1 이상이어야 합니다.");
 		}
 	}
 		break;
@@ -311,6 +315,10 @@ void ChatServer::ProcessGetRoomList(const UserPtr & user)
 
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
+	if (maxUser < 1)
+	{
+		return;
+	}
 	RoomPtr newRoom = m_roomMgr.CreateRoom(roomName, maxUser);
 	if (nullptr == newRoom)
 	{
