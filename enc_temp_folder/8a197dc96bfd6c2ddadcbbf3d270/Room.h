@@ -38,8 +38,6 @@ public:
 	void SendChat(const UserPtr sender, const std::string& msg);
 	///방 내의 모든 유저 이름 반환. 반환 : 방 내의 유저 이름들
 	std::string GetUserList();
-	///주어진 인덱스와 동일한 지 비교. 인자 : idx - 비교할 인덱스
-	bool IsSameIdx(int idx);
 
 private:
 	UserTable m_userTable;				/// 방 내 유저 리스트

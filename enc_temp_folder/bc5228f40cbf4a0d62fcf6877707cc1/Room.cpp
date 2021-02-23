@@ -85,11 +85,6 @@ std::string Room::GetUserList()
 	return userNameList;
 }
 
-bool Room::IsSameIdx(int idx)
-{
-	return m_roomIdx == idx;
-}
-
 RoomManager::RoomManager() : m_genRoomCnt(), m_roomTable()
 {
 	Initialize();

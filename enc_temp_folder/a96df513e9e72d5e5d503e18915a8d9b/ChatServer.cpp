@@ -261,23 +261,13 @@ void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 
 void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 {
-	RoomPtr& oldRoom = user->GetRoom();
-	if (nullptr != oldRoom)
-	{
-		if (true == oldRoom->IsSameIdx(roomIdx))
-		{
-			user->SendChat("현재 있는 방입니다.");
-			return;
-		}
-	}
-
-	RoomPtr newRoom = m_roomMgr.GetRoom(roomIdx);
-	if (nullptr == newRoom)
+	RoomPtr newRoomPtr = m_roomMgr.GetRoom(roomIdx);
+	if (nullptr == newRoomPtr)
 	{
 		user->SendChat("없는 방입니다.");
 		return;
 	}
-	ExchangeRoom(user, newRoom);
+	ExchangeRoom(user, newRoomPtr);
 }
 
 void ChatServer::ProcessQuit(UserPtr &user)
