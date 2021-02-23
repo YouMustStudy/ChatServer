@@ -115,7 +115,10 @@ void ChatServer::Run()
 							size_t cmdPos = user->m_data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
 							if (std::string::npos != cmdPos)
 							{
-								ProcessPacket(user, user->m_data.substr(0, cmdPos));
+								if (0 != cmdPos) /// 엔터만 연타로 치는 경우 견제
+								{
+									ProcessPacket(user, user->m_data.substr(0, cmdPos));
+								}
 								user->m_data = user->m_data.substr(cmdPos + 2);
 							}
 							else break;
