@@ -32,5 +32,5 @@ void CmdParser::Initialize()
 	m_regexs[CMD_USERLIST] = std::regex(R"(^\/userlist$)");
 	m_regexs[CMD_JOIN] = std::regex(R"(^\/join +([0-9]{1,})$)");
 	m_regexs[CMD_MSG] = std::regex(R"(^\/msg +(\S{1,}) +(.{1,})$)");
-	m_regexs[CMD_CREATEROOM] = std::regex(R"(^\/create +(\S{1,}) +(.{1,})$)");
+	m_regexs[CMD_CREATEROOM] = std::regex(R"(^^\/create +(\S{1,}) +([0-9]{1,})$)");
 }

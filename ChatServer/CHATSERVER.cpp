@@ -6,7 +6,7 @@ bool ChatServer::Initialize(short port)
 	InitWSA(port);
 
 	/// 로비 생성
-	m_lobby = m_roomMgr.CreateRoom("Lobby");
+	m_lobby = m_roomMgr.CreateRoom("Lobby", INT_MAX);
 	if (nullptr == m_lobby)
 		return false;
 	m_lobby->SetWeakPtr(m_lobby);
@@ -199,6 +199,16 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 		ProcessGetRoomList(user);
 		break;
 
+	case CMD_CREATEROOM:
+	{
+		int maxUser = std::stoi(param[2].str());
+		if (maxUser > 0)
+		{
+			ProcessCreateRoom(user, param[1].str(), maxUser);
+		}
+	}
+		break;
+
 	case CMD_ERROR:
 		ProcessError(user);
 		break;
@@ -296,6 +306,17 @@ void ChatServer::ProcessGetRoomList(const UserPtr & user)
 	user->SendChat(roomList);
 }
 
+void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
+{
+	RoomPtr newRoom = m_roomMgr.CreateRoom(roomName, maxUser);
+	if (nullptr == newRoom)
+	{
+		user->SendChat("방 생성 실패!!");
+		return;
+	}
+	ExchangeRoom(user, newRoom);
+}
+
 void ChatServer::ProcessHelp(const UserPtr & user)
 {
 	static std::string helpCmd{
@@ -303,7 +324,7 @@ void ChatServer::ProcessHelp(const UserPtr & user)
 [입장] /join [방번호]\r\n\
 [퇴장] /quit\r\n\
 [쪽지] /msg [상대방] [메세지] - 미구현\r\n\
-[방 생성] /create [방이름] [최대인원] - 미구현\r\n\
+[방 생성] /create [방이름] [최대인원]\r\n\
 [방 목록] /roomlist\r\n\
 [유저 목록] /userlist\r\n"	};
 	user->SendChat(helpCmd);

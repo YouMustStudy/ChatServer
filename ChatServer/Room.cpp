@@ -13,7 +13,7 @@ void Room::SetWeakPtr(RoomPtr &myself)
 	}
 }
 
-bool Room::Enter(UserPtr user)
+bool Room::Enter(UserPtr &user)
 {
 	/// 방의 입장인원 확인 후 입장
 	if (m_maxUser > m_userTable.size())
@@ -26,16 +26,15 @@ bool Room::Enter(UserPtr user)
 	return false;
 }
 
-bool Room::Leave(const UserPtr user)
+bool Room::Leave(UserPtr &user)
 {
 	if (1 == m_userTable.erase(user))
 	{
 		RoomPtr userRoom = user->GetRoom();
-		if (userRoom = m_selfPtr.lock())
+		if (userRoom == m_selfPtr.lock())
 		{
 			user->SetRoom(nullptr);
 		}
-
 		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
 		{
 			m_roomMgr->DestroyRoom(m_roomIdx);
@@ -97,7 +96,7 @@ void RoomManager::Initialize()
 	Room::m_roomMgr = this;
 }
 
-RoomPtr RoomManager::CreateRoom(const std::string & name)
+RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
 {
 	int roomIdx{0};
 	if (false == m_reuseRoomCnt.empty())	/// 스택에서 재사용 가능한 인덱스 있는지 확인
@@ -110,10 +109,11 @@ RoomPtr RoomManager::CreateRoom(const std::string & name)
 		roomIdx = m_genRoomCnt++;			/// 없으면 새로 발급
 	}
 
-	m_roomTable.emplace(std::make_pair(roomIdx, new Room(name, roomIdx)));
+	m_roomTable.emplace(std::make_pair(roomIdx, new Room(name, roomIdx, maxUser)));
 	if (nullptr != m_roomTable[roomIdx])
 	{
-		std::cout << "Room " << name << " is Created" << std::endl;
+		m_roomTable[roomIdx]->SetWeakPtr(m_roomTable[roomIdx]);
+		std::cout << "Room " << name << " is created" << std::endl;
 	}
 	return m_roomTable[roomIdx];
 }

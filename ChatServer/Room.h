@@ -23,15 +23,15 @@ class Room
 
 public:
 	Room() : m_userTable(), m_maxUser(INT_MAX), m_name(), m_roomIdx(), m_destroyed(false) {};
-	Room(const std::string& name, int idx) : m_userTable(), m_maxUser(INT_MAX), m_name(name), m_roomIdx(idx), m_destroyed(false) {};
+	Room(const std::string& name, int idx, int maxUser) : m_userTable(), m_maxUser(maxUser), m_name(name), m_roomIdx(idx), m_destroyed(false) {};
 	~Room() {};
 
 	/// 자기 자신의 weak_ptr을 저장하는 함수, 인자 : myself - 본인의 shared_ptr
 	void SetWeakPtr(RoomPtr& myself);
 	///유저를 방에 입장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
-	bool Enter(UserPtr user);
+	bool Enter(UserPtr &user);
 	///유저를 방에서 퇴장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
-	bool Leave(const UserPtr user);
+	bool Leave(UserPtr &user);
 	///방 내의 모든 유저들에게 공지 전송. 인자 : msg - 보낼 메세지
 	void NotifyAll(const std::string& msg);
 	///방 내의 모든 유저들에게 유저 메세지 전송. 인자 : sender - 보내는 사람, msg - 보낼 메세지
@@ -68,7 +68,7 @@ public:
 	///초기화 함수.
 	void Initialize();
 	///방을 생성. 인자 : name - Room의 이름, 반환 : 생성된 Room의 포인터
-	RoomPtr CreateRoom(const std::string& name);
+	RoomPtr CreateRoom(const std::string& name, int maxUser);
 	///방을 삭제. 인자 : idx - Room의 인덱스, 반환 : 성공여부
 	bool DestroyRoom(int idx);
 	///방의 포인터 획득. 인자 : idx - Room의 인덱스, 반환 : Room의 포인터, 실패 시 nullptr
