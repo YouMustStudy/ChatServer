@@ -49,8 +49,6 @@ private:
 	int m_maxUser;						/// 방 최대인원 수
 	bool m_destroyed;					/// 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
 	std::weak_ptr<Room> m_selfPtr;		/// 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
-
-	static RoomManager* m_roomMgr;		/// 방 삭제 호출 포인터
 };
 
 
@@ -65,11 +63,8 @@ class RoomManager
 	typedef std::map<int, RoomPtr> RoomTable;
 
 public:
-	RoomManager();
 	~RoomManager() {};
 
-	///초기화 함수.
-	void Initialize();
 	///방을 생성. 인자 : name - Room의 이름, 반환 : 생성된 Room의 포인터
 	RoomPtr CreateRoom(const std::string& name, int maxUser);
 	///방을 삭제. 인자 : idx - Room의 인덱스, 반환 : 성공여부
@@ -78,9 +73,14 @@ public:
 	RoomPtr GetRoom(int idx);
 	///모든 Room의 목록 획득. 반환 : 생성된 방의 이름들
 	std::string GetRoomList();
+	///싱글턴 인스턴스
+	static RoomManager& Instance();
 
 private:
 	RoomTable m_roomTable;				/// 방을 관리하는 테이블
 	int m_genRoomCnt;					/// 현재까지 생성된 방의 수
 	std::stack<int> m_reuseRoomCnt;		/// 방 인덱스 재사용 저장 컨테이너
+
+	RoomManager();
 };
+#define g_roomManager (RoomManager::Instance())

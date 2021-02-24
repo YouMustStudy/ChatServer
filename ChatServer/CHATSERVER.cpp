@@ -7,7 +7,7 @@ bool ChatServer::Initialize(short port)
 	InitWSA(port);
 
 	/// 로비 생성, 로비는 사실상 인원제한 없다.
-	m_lobby = m_roomMgr.CreateRoom("Lobby", INT_MAX);
+	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX);
 	if (nullptr == m_lobby)
 		return false;
 	m_lobby->SetWeakPtr(m_lobby);
@@ -95,9 +95,10 @@ void ChatServer::Run()
 							UserPtr newUser = AddSession(clientSocket);
 							assert(nullptr != newUser); /// 세션 생성 실패 - map인데 실패한다? 문제있음
 
-							std::cout << "Client Accept - " << clientSocket << std::endl;
+							std::cout << "[Client Accept] - " << clientSocket << std::endl;
 							newUser->SendChat(welcomeMsg);
 #ifndef LOGIN_ON
+							g_userManager.AddUser(newUser, newUser->GetName());
 							ProcessHelp(newUser);
 							m_lobby->Enter(newUser);
 #endif // LOGIN_ON
@@ -333,7 +334,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 		}
 	}
 
-	RoomPtr newRoom = m_roomMgr.GetRoom(roomIdx);
+	RoomPtr newRoom = g_roomManager.GetRoom(roomIdx);
 	if (nullptr == newRoom)
 	{
 		user->SendChat("없는 방입니다.");
@@ -380,7 +381,7 @@ void ChatServer::ProcessGetUserList(const UserPtr &user)
 
 void ChatServer::ProcessGetRoomList(const UserPtr & user)
 {
-	std::string& roomList = m_roomMgr.GetRoomList();
+	std::string& roomList = g_roomManager.GetRoomList();
 	user->SendChat(roomList);
 }
 
@@ -390,7 +391,7 @@ void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, 
 	{
 		return;
 	}
-	RoomPtr newRoom = m_roomMgr.CreateRoom(roomName, maxUser);
+	RoomPtr newRoom = g_roomManager.CreateRoom(roomName, maxUser);
 	if (nullptr == newRoom)
 	{
 		user->SendChat("방 생성 실패!!");

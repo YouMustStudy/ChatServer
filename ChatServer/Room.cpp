@@ -3,7 +3,6 @@
 
 constexpr int LOBBY = 0;
 
-RoomManager* Room::m_roomMgr = nullptr;
 void Room::SetWeakPtr(RoomPtr &myself)
 {
 	if (myself.get() == this) 
@@ -36,7 +35,7 @@ bool Room::Leave(UserPtr &user)
 		}
 		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
 		{
-			m_roomMgr->DestroyRoom(m_roomIdx);
+			g_roomManager.DestroyRoom(m_roomIdx);
 		}
 		else
 		{
@@ -51,7 +50,7 @@ bool Room::Leave(UserPtr &user)
 void Room::NotifyAll(const std::string& msg)
 {
 	/// [Room Name] - 메세지
-	std::string completeMsg(std::string("[Room ") + m_name + std::string("] - ") + msg);
+	std::string completeMsg(std::string("[") + m_name + std::string("] - ") + msg);
 	for (auto& userPtr : m_userTable)
 	{
 		userPtr->SendChat(completeMsg);
@@ -91,13 +90,6 @@ bool Room::IsSameIdx(int idx)
 
 RoomManager::RoomManager() : m_genRoomCnt(), m_roomTable()
 {
-	Initialize();
-}
-
-void RoomManager::Initialize()
-{
-	/// 방 삭제 호출용 포인터 등록
-	Room::m_roomMgr = this;
 }
 
 RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
@@ -171,4 +163,10 @@ std::string RoomManager::GetRoomList()
 		roomNameList += "[" + std::to_string(roomPair.first) + "] " + roomPair.second->m_name + "\r\n";
 	}
 	return roomNameList;
+}
+
+RoomManager & RoomManager::Instance()
+{
+	static RoomManager *roomManager = new RoomManager();
+	return *roomManager;
 }

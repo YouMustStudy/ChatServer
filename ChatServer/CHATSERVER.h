@@ -38,7 +38,6 @@ public:
 private:
 	SOCKET m_listener;			/// Listen 소켓
 	sessionTable m_sessionTable;/// 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
-	RoomManager m_roomMgr;		/// 룸 매니저
 	RoomPtr m_lobby;			/// 로비 포인터
 	CmdParser m_cmdParser;		/// 명령어 처리객체
 
