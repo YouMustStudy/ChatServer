@@ -10,12 +10,10 @@ class User;
 typedef std::shared_ptr<User> UserPtr;
 
 class RoomManager;
-/*
-Room
-유저들이 모이는 하나의 단위
-채팅은 해당 방 내에서만 이뤄진다.
+/**
+*@brief 
+*유저들이 모이는 하나의 단위로 채팅은 해당 방 내에서만 이뤄진다.
 */
-
 class Room
 {
 	friend RoomManager;
@@ -27,35 +25,67 @@ public:
 	Room(const std::string& name, int idx, int maxUser) : m_userTable(), m_maxUser(maxUser), m_name(name), m_roomIdx(idx), m_destroyed(false) {};
 	~Room() {};
 
-	/// 자기 자신의 weak_ptr을 저장하는 함수, 인자 : myself - 본인의 shared_ptr
+	/**
+	*@brief 자기 자신의 weak_ptr을 저장하는 함수, 유저가 방에 입장 시 유저의 방 포인터를 본인의 것으로 수정하기 위해 필요하다.
+	*@param[in] myself 자기 자신의 RoomPtr
+	*/
 	void SetWeakPtr(RoomPtr& myself);
-	///유저를 방에 입장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
+
+	/**
+	*@brief 유저를 방에 입장시킨다.
+	*@param[in] user 입장할 유저의 포인터.
+	*@return 성공 시 true, 인원 제한에 걸려 입장을 못할 시 false.
+	*/
 	bool Enter(UserPtr &user);
-	///유저를 방에서 퇴장. 인자 : user - 입장할 유저의 포인터, 반환 : 성공여부
+
+	
+	/**
+	*@brief 방에서 유저를 퇴장시킨다. 동시에 남은 인원에게 유저의 퇴장을 알린다. 남은 인원이 없을 시 방을 제거한다.
+	*@param[in] user 퇴장할 유저의 포인터.
+	*@return 성공 시 true, 실패 시 false.
+	*/
 	bool Leave(UserPtr &user);
-	///방 내의 모든 유저들에게 공지 전송. 인자 : msg - 보낼 메세지
+
+	/**
+	*@brief 방 내 모든 유저들에게 공지를 전송한다.
+	*@param[in] msg 전송할 메세지.
+	*/
 	void NotifyAll(const std::string& msg);
-	///방 내의 모든 유저들에게 유저 메세지 전송. 인자 : sender - 보내는 사람, msg - 보낼 메세지
+
+	/**
+	*@brief 방 내 모든 유저들에게 메세지를 전송한다.
+	*@param[in] sender 전송자의 포인터.
+	*@param[in] msg 전송할 메세지.
+	*/
 	void SendChat(const UserPtr sender, const std::string& msg);
-	///방 내의 모든 유저 이름 반환. 반환 : 방 내의 유저 이름들
+
+	/**
+	*@brief 방 내 모든 유저들의 이름을 반환한다.
+	*@return 유저들의 이름이 담긴 string 객체.
+	*/
 	std::string GetUserList();
-	///주어진 인덱스와 동일한 지 비교. 인자 : idx - 비교할 인덱스
+	
+	/**
+	*@brief 본인의 인덱스가 인자와 동일한 지 비교한다.
+	*@param[in] idx 검사할 인덱스.
+	*@return 같다면 true, 다르면 false.
+	*/
 	bool IsSameIdx(int idx);
 
 private:
-	UserTable m_userTable;				/// 방 내 유저 리스트
-	std::string m_name;					/// 방 이름
-	int m_roomIdx;						/// 방의 고유번호
-	int m_maxUser;						/// 방 최대인원 수
-	bool m_destroyed;					/// 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
-	std::weak_ptr<Room> m_selfPtr;		/// 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
+	UserTable m_userTable;				///< 방 내 유저 리스트
+	std::string m_name;					///< 방 이름
+	int m_roomIdx;						///< 방의 고유번호
+	int m_maxUser;						///< 방 최대인원 수
+	bool m_destroyed;					///< 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
+	std::weak_ptr<Room> m_selfPtr;		///< 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
 };
 
 
-/*
-RoomManager
-방을 관리하는 매니저 객체.
-생성, 삭제, 검색, 목록 등을 처리한다.
+/**
+*@brief
+*방을 관리하는 매니저 객체.
+*방의 생성, 삭제, 검색, 목록 등을 처리한다.
 */
 class RoomManager
 {
@@ -65,22 +95,47 @@ class RoomManager
 public:
 	~RoomManager() {};
 
-	///방을 생성. 인자 : name - Room의 이름, 반환 : 생성된 Room의 포인터
+	/**
+	*@brief 방을 테이블에 생성한다.
+	*@param[in] name 생성할 방의 이름.
+	*@param[in] maxUser 최대 인원 제한 수.
+	*@return 생성된 방의 RoomPtr, 실패 시 nullptr.
+	*/
 	RoomPtr CreateRoom(const std::string& name, int maxUser);
-	///방을 삭제. 인자 : idx - Room의 인덱스, 반환 : 성공여부
+
+	/**
+	*@brief 방을 테이블에서 제거한다.
+	*@param[in] idx 제거할 방의 인덱스.
+	*@return 성공 시 true, 실패 시 false.
+	*/
 	bool DestroyRoom(int idx);
-	///방의 포인터 획득. 인자 : idx - Room의 인덱스, 반환 : Room의 포인터, 실패 시 nullptr
+
+	/**
+	*@brief 인덱스로 방을 검색, 포인터를 반환한다.
+	*@param[in] idx 검색할 방의 인덱스
+	*@return 성공 시 방의 RoomPtr, 실패 시 nullptr.
+	*/
 	RoomPtr GetRoom(int idx);
-	///모든 Room의 목록 획득. 반환 : 생성된 방의 이름들
+
+	/**
+	*@brief 생성된 모든 방의 목록을 반환한다.
+	*@return 방의 이름들이 담긴 string 객체.
+	*/
 	std::string GetRoomList();
-	///싱글턴 인스턴스
+	
+	/**
+	*@brief 싱글턴 호출용 함수. g_roomManager로 매크로가 되어있다.
+	*@return 싱글턴 객체의 레퍼런스.
+	*/
 	static RoomManager& Instance();
 
 private:
-	RoomTable m_roomTable;				/// 방을 관리하는 테이블
-	int m_genRoomCnt;					/// 현재까지 생성된 방의 수
-	std::stack<int> m_reuseRoomCnt;		/// 방 인덱스 재사용 저장 컨테이너
+	RoomTable m_roomTable;				///< 방을 관리하는 테이블
+	int m_genRoomCnt;					///< 현재까지 생성된 방의 수
+	std::stack<int> m_reuseRoomCnt;		///< 방 인덱스 재사용 저장 컨테이너
 
 	RoomManager();
 };
+
+//@brief RoomManager 호출 매크로.
 #define g_roomManager (RoomManager::Instance())

@@ -5,13 +5,7 @@
 bool ChatServer::Initialize(short port)
 {
 	InitWSA(port);
-
-	/// 로비 생성, 로비는 사실상 인원제한 없다.
-	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX);
-	if (nullptr == m_lobby)
-		return false;
-	m_lobby->SetWeakPtr(m_lobby);
-
+	InitLobby();
 	return true;
 }
 
@@ -20,9 +14,9 @@ void ChatServer::Run()
 	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n10자 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	std::cout << "[Start Accept]" << std::endl;
 
-	/// Recv는 동기적으로 발생한다.
-	/// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능.
-	/// => Recv용 소켓은 지역변수로 관리 가능.
+	// Recv는 순차적으로 처리된다.
+	// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능하다.
+	// => Recv용 소켓은 지역변수로 관리 가능.
 	std::deque<SOCKET> recvSockets;
 	recvSockets.emplace_back(m_listener);
 	std::vector<fd_set> masterFdSets;
@@ -32,18 +26,17 @@ void ChatServer::Run()
 	masterFdSets.emplace_back();
 	maxFds.emplace_back(0);
 
-	char buffer[BUF_SIZE + 1];
-
-	///select는 64인 제한이 있음.
-	///64개 단위로 select를 반복적으로 호출, 인원제한을 해제한다.
-	///매번 fd_set을 갱신하는 것은 오버헤드가 있으므로
-	///갱신이 필요한 상황(Accept, Disconnect)에서만 dirtyFlag를 세팅, 다음 순회에서 갱신한다.
+	//select는 64인 제한이 있음.
+	//이를 해결하기 위해 소켓을 순차적으로 fd_set에 추가, select를 반복적으로 호출한다.
+	//매번 fd_set을 갱신하는 것은 오버헤드가 있으므로
+	//갱신이 필요한 상황(Accept, Disconnect)에서만 dirtyFlag를 세팅, 다음 순회에서 갱신한다.
 	timeval timeout{ 0, 0 };
 	fd_set copyFdSet;
+	char buffer[BUF_SIZE + 1];
 	while (true)
 	{
 		int loopCnt = (static_cast<int>(recvSockets.size()) - 1) / FD_SETSIZE + 1;
-		/// 소켓 리스트에 변경 발생 시 FdSet 갱신.
+		// 소켓 리스트에 변경 발생 시 FdSet 갱신.
 		if (true == dirtyFlag)
 		{
 			while (masterFdSets.size() < loopCnt)
@@ -65,6 +58,7 @@ void ChatServer::Run()
 			dirtyFlag = false;
 		}
 
+		// 이후 반복적으로 select 호출.
 		for (int fdSetNum = 0; fdSetNum < loopCnt; ++fdSetNum)
 		{
 			copyFdSet = masterFdSets[fdSetNum];
@@ -79,7 +73,7 @@ void ChatServer::Run()
 			{
 				if (FD_ISSET(readySoc, &copyFdSet))
 				{
-					/// Accept
+					// Accept
 					if (m_listener == readySoc)
 					{
 						int len = sizeof(SOCKADDR_IN);
@@ -87,12 +81,12 @@ void ChatServer::Run()
 						SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
 						if (INVALID_SOCKET != clientSocket)
 						{
-							/// 소켓 리스트에 등록
+							// 소켓 리스트에 등록
 							recvSockets.emplace_back(clientSocket);
 							dirtyFlag = true;
 
 							UserPtr newUser = AddSession(clientSocket);
-							assert(nullptr != newUser); /// 세션 생성 실패 - map인데 실패한다? 문제있음
+							assert(nullptr != newUser); // 세션 생성 실패 - map인데 실패한다? 문제있음
 
 							std::cout << "[Client Accept] - " << clientSocket << std::endl;
 							newUser->SendChat(welcomeMsg);
@@ -101,23 +95,20 @@ void ChatServer::Run()
 #endif // LOGIN_ON
 						}
 					}
-					/// Recv
+					// Recv
 					else
 					{
-						/// 데이터는 완전한 형태로 온다고 가정, timeout 혹은 논블럭킹으로 교체 필요.
 						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
 						UserPtr user = m_sessionTable[readySoc];
 						assert(nullptr != user);
-						/// 오류 예외처리 추가하자
-						if (recvLength <= 0) ///종료처리
+						if (recvLength <= 0) //종료처리
 						{
 							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
 							assert(recvSockets.end() != delPos);
 							recvSockets.erase(delPos);
 							dirtyFlag = true;
-							assert(1 == EraseSession(readySoc)); ///싱글스레드에서 삭제실패? 문제있음
+							assert(1 == EraseSession(readySoc)); //싱글스레드에서 삭제실패? 문제있음
 
-							/// 이후 태스크로 보낼것, 지연된 close, 
 							DisconnectUser(user);
 							continue;
 						}
@@ -125,10 +116,10 @@ void ChatServer::Run()
 						user->PushData(buffer, recvLength);
 						while (true)
 						{
-							size_t cmdPos = user->m_data.find("\r\n"); /// 개행문자 발견 시 패킷 처리
+							size_t cmdPos = user->m_data.find("\r\n"); // 개행문자 발견 시 패킷 처리
 							if (std::string::npos != cmdPos)
 							{
-								if (0 != cmdPos) /// 엔터만 연타로 치는 경우 견제
+								if (0 != cmdPos) // 엔터만 연타로 치는 경우는 처리하지 않는다.
 								{
 									ProcessPacket(user, user->m_data.substr(0, cmdPos));
 								}
@@ -178,6 +169,16 @@ bool ChatServer::InitWSA(short port)
 		return false;
 	}
 
+	return true;
+}
+
+bool ChatServer::InitLobby()
+{
+	// 로비 생성, 로비는 사실상 인원제한이 없다.
+	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX);
+	if (nullptr == m_lobby)
+		return false;
+	m_lobby->SetWeakPtr(m_lobby);
 	return true;
 }
 
@@ -255,10 +256,10 @@ void ChatServer::DisconnectUser(UserPtr& user)
 	RoomPtr curRoom = user->GetRoom();
 	curRoom->Leave(user);
 
-	/// 수정 필요(캡슐화)
 	SOCKET userSocket = user->GetSocket();
-	closesocket(userSocket);
+	user->SetSocket(INVALID_SOCKET);
 	g_userManager.EraseUser(user);
+	closesocket(userSocket);
 	std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
 }
 
@@ -298,7 +299,7 @@ size_t ChatServer::EraseSession(SOCKET socket)
 	return m_sessionTable.erase(socket);
 }
 
-bool ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
+void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 {
 	if (false == user->GetIsLogin())
 	{
@@ -307,11 +308,11 @@ bool ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 			user->SetLogin(userName);
 			ProcessHelp(user);
 			m_lobby->Enter(user);
-			return true;
+			return;
 		}
 		user->SendChat("[입장실패] ID가 중복됩니다.");
 	}
-	return false;
+	return;
 }
 
 void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)

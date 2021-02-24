@@ -28,54 +28,147 @@ public:
 	{};
 	~ChatServer() {};
 
-	/// 서버 초기화. 인자 : 포트번호
+	/**
+	*@brief 서버를 초기화한다.
+	*@param[in] 서버의 포트 번호.
+	*@return 성공 시 true, 실패 시 false.
+	*/
 	bool Initialize(short port);
-	/// Accept 시작.
+
+	/**
+	*@brief Accept를 시작한다.
+	*/
 	void Run();
-	/// 서버 종료처리
+
+	/**
+	*@brief 서버의 종료처리를 한다.
+	*/
 	void Terminate();
 
 private:
-	SOCKET m_listener;			/// Listen 소켓
-	sessionTable m_sessionTable;/// 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
-	RoomPtr m_lobby;			/// 로비 포인터
-	CmdParser m_cmdParser;		/// 명령어 처리객체
+	SOCKET m_listener;				///< Listen 소켓
+	sessionTable m_sessionTable;	///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
+	RoomPtr m_lobby;				///< 로비의 포인터
+	CmdParser m_cmdParser;			///< 명령어 처리객체
 
-	/// WSA 초기화.
+	/**
+	*@brief WSA환경 초기화.
+	*@param[in] 서버의 포트 번호.
+	*@return 성공 시 true, 실패 시 false.
+	*/
 	bool InitWSA(short port);
-	/// 패킷 처리. 인자 : user - 요청한 유저 포인터, data - 처리할 데이터
-	void ProcessPacket(UserPtr& user, std::string data);
-	/// 유저 종료 처리. 인자 : user - 요청한 유저 포인터
-	void DisconnectUser(UserPtr& user);
-	/// 방 교환용 함수. 인자 : user - 요청한 유저 포인터, enterRoom - 새로 입장할 방 포인터
-	void ExchangeRoom(UserPtr& user, RoomPtr& enterRoom);
-	/// 유저 접속 시 세션을 추가하는 함수. 인자 : socket - 세션의 소켓값, 반환 : 생성된 유저의 포인터
-	UserPtr AddSession(SOCKET socket);
-	/// 유저 종료 시 세션을 삭제하는 함수. 인자 : socket - 세션의 소켓값, 반환 : 삭제된 세션의 수
-	size_t EraseSession(SOCKET socket);
-	
 
-	/// 명령어 처리 함수들.
-	/// 유저 로그인 처리 함수. 인자 : user - 요청한 유저 포인터, userName - 로그인할 유저의 이름, 반환 : 성공여부
-	bool ProcessLogin(UserPtr &user, const std::string& userName);
-	/// 채팅 명령 처리. 인자 : sender - 요청 유저의 포인터, msg - 보낼 메세지
+	/**
+	*@brief 로비를 생성한다.
+	*@return 성공 시 true, 실패 시 false.
+	*/
+	bool InitLobby();
+
+	/**
+	*@brief 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] data 처리할 데이터.
+	*/
+	void ProcessPacket(UserPtr& user, std::string data);
+
+	/**
+	*@brief 유저를 종료처리한다.
+	*@param[in] user 종료할 유저의 포인터.
+	*/
+	void DisconnectUser(UserPtr& user);
+
+	/**
+	*@brief 유저를 기존 방에서 새로운 방으로 이동시킨다.
+	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] enterRoom 새로 들어갈 방의 포인터.
+	*/
+	void ExchangeRoom(UserPtr& user, RoomPtr& enterRoom);
+
+	/**
+	*@brief 새로운 유저 접속 시 세션을 추가한다.
+	*@param[in] socket 세션에서 사용할 소켓.
+	*@return 생성된 세션의 UserPtr, 실패 시 nullptr.
+	*/
+	UserPtr AddSession(SOCKET socket);
+
+	/**
+	*@brief 접속 종료 시 세션을 삭제한다.
+	*@param[in] socket 세션에서 사용하던 소켓.
+	*@return 성공 시 1, 실패 시 0.
+	*/
+	size_t EraseSession(SOCKET socket);
+
+	// 명령어 처리 함수들.
+	/**
+	*@brief 로그인 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] userName 로그인할 이름.
+	*/
+	void ProcessLogin(UserPtr &user, const std::string& userName);
+
+	/**
+	*@brief 채팅 패킷을 처리한다.
+	*@param[in] user 송신자의 포인터.
+	*@param[in] msg 보낼 메세지.
+	*/
 	void ProcessChat(const UserPtr& sender, const std::string& msg);
-	/// 방 입장 처리. 인자 : user - 입장할 유저의 포인터, roomIdx - 입장할 방의 인덱스(RoomManager의 Key)
+
+	/**
+	*@brief 입장 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] userName 로그인할 방의 인덱스.
+	*/
 	void ProcessJoin(UserPtr& user, int roomIdx);
-	/// 방 퇴장 처리. 인자 : user - 방에서 나갈 유저의 포인터
+
+	/**
+	*@brief 퇴장 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessQuit(UserPtr& user);
-	/// 쪽지 명령 처리. 인자 : sender - 보낸 유저의 포인터, receiver - 받는 유저의 이름, msg - 보낼 메세지
+
+	/**
+	*@brief 귓속말 패킷을 처리한다.
+	*@param[in] sender 송신자의 포인터.
+	*@param[in] receiverName 수신자의 이름.
+	*@param[in] msg 보낼 메세지.
+	*/
 	void ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg);
-	/// 방 내부 인원의 목록 전송. 인자 : user - 요청 유저의 포인터
+
+	/**
+	*@brief 현재 방 내 유저 목록 요청 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessGetUserList(const UserPtr& user);
-	/// 서버 내 방 목록 전송. 인자 : user - 요청 유저의 포인터
+
+	/**
+	*@brief 방 목록 요청 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessGetRoomList(const UserPtr& user);
-	/// 서버 내 모든 인원의 목록 전송. 인자 : user - 요청 유저의 포인터
+
+	/**
+	*@brief 서버 내 유저 목록 요청 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessGetAllUserList(const UserPtr& user);
-	/// 방을 생성한 후 유저를 해당 방으로 입장시킨다. 인자 : user - 요청 유저의 포인터, roomName - 생성할 방의 이름, maxUser - 방의 최대인원 수, 반환 : 생성된 방의 포인터
+
+	/**
+	*@brief 방 생성 요청 패킷을 처리한다. 유저는 방 생성 후 바로 해당 방으로 입장한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] roomName 생성할 방의 이름.
+	*@param[in] maxUser 방의 인원 제한 수.
+	*/
 	void ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser);
-	/// 도움 메세지 전송. user- 요청 유저의 포인터
+
+	/**
+	*@brief 도움말 요청 패킷을 처리한다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessHelp(const UserPtr& user);
-	/// 잘못된 명령어 메세지 수신 시 핸들링. user- 요청 유저의 포인터
+
+	/**
+	*@brief 잘못된 명령어를 수신받았을 때의 처리함수. 유저에게 오류 메세지를 보낸다.
+	*@param[in] user 요청한 유저의 포인터.
+	*/
 	void ProcessError(const UserPtr& user);
 };

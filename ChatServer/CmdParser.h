@@ -5,27 +5,28 @@
 #include <vector>
 #include "User.h"
 
-enum CMD
+/**
+*@brief 채팅 명령어 목록
+*/
+enum CMD_TYPE
 {
-	CMD_CHAT = -1,
-	CMD_HELP,
-	CMD_QUIT,
-	CMD_ROOMLIST,
-	CMD_USERLIST,
-	CMD_ALLUSERLIST,
-	CMD_JOIN,
-	CMD_LOGIN,
-	CMD_MSG, 
-	CMD_CREATEROOM,
+	CMD_CHAT = -1,		///< 채팅
+	CMD_HELP,			///< 도움말
+	CMD_QUIT,			///< 퇴장
+	CMD_ROOMLIST,		///< 방 목록
+	CMD_USERLIST,		///< 방 내 유저 목록
+	CMD_ALLUSERLIST,	///< 서버 내 유저 목록
+	CMD_JOIN,			///< 입장
+	CMD_LOGIN,			///< 로그인
+	CMD_MSG,			///< 귓속말
+	CMD_CREATEROOM,		///< 방 생성
 
-	CMD_ERROR,
+	CMD_ERROR,			///< 오류
 	CMD_COUNT
 };
-/*
-CmdParser
-유저가 보낸 문자열에서 명령어를 파싱
+/**
+*@brief 문자열에서 명령 타입, 인수를 파싱하는 객체.
 */
-
 class CmdParser
 {
 	typedef std::shared_ptr<User> UserPtr;
@@ -34,11 +35,20 @@ class CmdParser
 public:
 	CmdParser();
 	~CmdParser();
-	/// 문자열을 받아서 파싱 후 실행하는 함수. 인자 : user - 실행할 유저, data - 처리할 데이터
-	int Parse(std::string &data, std::smatch& result);
+
+	/**
+	*@brief 문자열을 받아서 명령 타입, 인수로 나눠준다.
+	*@param[in] data 파싱할 문자열.
+	*@param[out] 인수가 저장될 smatch 객체.
+	*@return 명령에 대한 CMD_TYPE값을 반환.
+	*/
+	int Parse(const std::string &data, std::smatch& result);
 
 private:
-	std::vector<std::regex> m_regexs;			/// 명령어 파싱용 정규표현식 객체
+	std::vector<std::regex> m_regexs;	///> 명령어 파싱용 정규표현식 객체
 
+	/**
+	*@brief regex객체들을 초기화함.
+	*/
 	void Initialize();
 };

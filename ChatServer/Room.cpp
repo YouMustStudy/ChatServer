@@ -13,7 +13,7 @@ void Room::SetWeakPtr(RoomPtr &myself)
 
 bool Room::Enter(UserPtr &user)
 {
-	/// 방의 입장인원 확인 후 입장
+	// 방의 입장인원 확인 후 처리
 	if (m_maxUser > m_userTable.size())
 	{
 		m_userTable.emplace(user);
@@ -33,13 +33,13 @@ bool Room::Leave(UserPtr &user)
 		{
 			user->SetRoom(nullptr);
 		}
-		if (true == m_userTable.empty()) /// 인원수가 0이면 방 삭제
+		if (true == m_userTable.empty()) // 인원수가 0이면 방 삭제
 		{
 			g_roomManager.DestroyRoom(m_roomIdx);
 		}
 		else
 		{
-			NotifyAll("ByeBye " + user->GetName()); /// 유저의 퇴장을 알림
+			NotifyAll("ByeBye " + user->GetName()); // 유저의 퇴장을 알림
 		}
 		return true;
 	}
@@ -49,7 +49,7 @@ bool Room::Leave(UserPtr &user)
 
 void Room::NotifyAll(const std::string& msg)
 {
-	/// [Room Name] - 메세지
+	// [ROOM NOTIFY] - 메세지
 	std::string completeMsg(std::string("[ROOM NOTIFY] - ") + msg);
 	for (auto& userPtr : m_userTable)
 	{
@@ -59,7 +59,7 @@ void Room::NotifyAll(const std::string& msg)
 
 void Room::SendChat(const UserPtr sender, const std::string& msg)
 {
-	/// [유저ID] : 메세지
+	// [유저ID] 메세지
 	std::string completeMsg(std::string("[") + sender->GetName() + std::string("] ") + msg);
 	for (auto& userPtr: m_userTable)
 	{
@@ -70,11 +70,11 @@ void Room::SendChat(const UserPtr sender, const std::string& msg)
 
 std::string Room::GetUserList()
 {
-	/// ==유저 목록 ==
-	/// abc
-	/// zipzip
-	/// hungry
-	/// ...
+	// ==유저 목록 ==
+	// [abc]
+	// [zipzip]
+	// [hungry]
+	// ...
 	std::string userNameList{"==방 참여자 목록==\r\n"};
 	for (const auto& user : m_userTable)
 	{
@@ -99,14 +99,14 @@ RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
 		return nullptr;
 	}
 	int roomIdx{0};
-	if (false == m_reuseRoomCnt.empty())	/// 스택에서 재사용 가능한 인덱스 있는지 확인
+	if (false == m_reuseRoomCnt.empty())	// 스택에서 재사용 가능한 인덱스 있는지 확인
 	{
 		roomIdx = m_reuseRoomCnt.top();
 		m_reuseRoomCnt.pop();
 	}
 	else
 	{
-		roomIdx = m_genRoomCnt++;			/// 없으면 새로 발급
+		roomIdx = m_genRoomCnt++;			// 없으면 새로 발급
 	}
 
 	m_roomTable.emplace(std::make_pair(roomIdx, new Room(name, roomIdx, maxUser)));
@@ -120,17 +120,17 @@ RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
 
 bool RoomManager::DestroyRoom(int idx)
 {
-	if (LOBBY == idx) /// 로비면 삭제할 필요 X
+	if (LOBBY == idx) // 로비면 삭제할 필요 X
 	{
 		return false;
 	}
 
-	if (0 == m_roomTable.count(idx)) /// 없는 방 인덱스로 삭제 방지
+	if (0 == m_roomTable.count(idx)) // 없는 방 인덱스로 삭제 방지
 	{
 		return false;
 	}
 
-	if (m_roomTable[idx]->m_userTable.size() > 0) /// 유저가 남아있으면 지우면 안됨
+	if (m_roomTable[idx]->m_userTable.size() > 0) // 유저가 남아있으면 지우면 안됨
 	{
 		return false;
 	}

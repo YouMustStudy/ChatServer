@@ -8,7 +8,7 @@ CmdParser::~CmdParser()
 {
 }
 
-int CmdParser::Parse(std::string &data, std::smatch& param)
+int CmdParser::Parse(const std::string &data, std::smatch& param)
 {
 	if (data[0] != '/')
 	{
