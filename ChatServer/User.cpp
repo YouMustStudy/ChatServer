@@ -1,8 +1,17 @@
 #include "User.h"
 #include "Room.h"
+#include "Error.h"
 
-int User::SendChat(const std::string &msg)
+User::User(SOCKET socket, SOCKADDR_IN addr) : m_socket(socket), m_name(), m_data(), m_room(nullptr), m_login(false), m_isAlive(true), m_addr()
 {
+	char addrArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &addr, addrArray, INET_ADDRSTRLEN);
+	m_name = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(addr.sin_port)) + "]";
+}
+
+void User::SendChat(const std::string &msg)
+{
+
 	if (INVALID_SOCKET == m_socket)
 	{
 		std::cout << m_name << "has INVALID_SOCKET" << std::endl;
@@ -10,7 +19,18 @@ int User::SendChat(const std::string &msg)
 	}
 	std::string completeMsg = msg + "\r\n";
 	int sendSize = send(m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
-	return sendSize;
+	if (sendSize == 0)
+	{
+		g_userManager.DisconnectUser(m_name);
+	}
+	else if (sendSize < 0) 
+	{
+		int errCode = WSAGetLastError();
+		if (EAGAIN != errCode)
+		{
+			error_display(m_addr.c_str() ,errCode);
+		}
+	}
 }
 
 RoomPtr User::GetRoom()
@@ -33,6 +53,23 @@ void User::SetSocket(SOCKET socket)
 	m_socket = socket;
 }
 
+bool User::IsAlive()
+{
+	return m_isAlive;
+}
+
+void User::Kill()
+{
+	if (true == IsAlive())
+	{
+		SOCKET oldSocket = m_socket;
+		m_socket = INVALID_SOCKET;
+		m_isAlive = false;
+		closesocket(oldSocket);
+	}
+}
+
+
 bool User::GetIsLogin()
 {
 	return m_login;
@@ -42,6 +79,11 @@ void User::SetLogin(const std::string& name)
 {
 	m_login = true;
 	m_name = name;
+}
+
+std::string User::GetAddr()
+{
+	return m_addr;
 }
 
 void User::PushData(const char * data, int length)
@@ -104,6 +146,32 @@ std::string UserManager::GetUserList()
 		userNameList += "[" + user.first + "]" + "\r\n";
 	}
 	return userNameList;
+}
+
+void UserManager::DisconnectUser(const std::string & userName)
+{
+	UserPtr user = g_userManager.GetUser(userName);
+	if (nullptr == user)
+	{
+		return;
+	}
+	DisconnectUser(user);
+}
+
+void UserManager::DisconnectUser(UserPtr & user)
+{
+	if (nullptr == user)
+	{
+		return;
+	}
+	if (true == user->IsAlive()) 
+	{
+		RoomPtr curRoom = user->GetRoom();
+		curRoom->Leave(user);
+		user->Kill();
+		g_userManager.EraseUser(user);
+		std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
+	}
 }
 
 UserManager::UserManager() : m_userTable()

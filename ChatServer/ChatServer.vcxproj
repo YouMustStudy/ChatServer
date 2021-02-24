@@ -140,6 +140,7 @@
   <ItemGroup>
     <ClCompile Include="ChatServer.cpp" />
     <ClCompile Include="CmdParser.cpp" />
+    <ClCompile Include="Error.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="User.cpp" />
@@ -147,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="ChatServer.h" />
     <ClInclude Include="CmdParser.h" />
+    <ClInclude Include="Error.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="User.h" />
   </ItemGroup>

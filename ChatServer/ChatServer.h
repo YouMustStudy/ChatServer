@@ -72,12 +72,6 @@ private:
 	void ProcessPacket(UserPtr& user, std::string data);
 
 	/**
-	*@brief 유저를 종료처리한다.
-	*@param[in] user 종료할 유저의 포인터.
-	*/
-	void DisconnectUser(UserPtr& user);
-
-	/**
 	*@brief 유저를 기존 방에서 새로운 방으로 이동시킨다.
 	*@param[in] user 요청한 유저의 포인터.
 	*@param[in] enterRoom 새로 들어갈 방의 포인터.
@@ -89,7 +83,7 @@ private:
 	*@param[in] socket 세션에서 사용할 소켓.
 	*@return 생성된 세션의 UserPtr, 실패 시 nullptr.
 	*/
-	UserPtr AddSession(SOCKET socket);
+	UserPtr AddSession(SOCKET socket, SOCKADDR_IN addr);
 
 	/**
 	*@brief 접속 종료 시 세션을 삭제한다.

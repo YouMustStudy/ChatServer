@@ -1,4 +1,5 @@
 #include "ChatServer.h"
+#include "Error.h"
 
 #define LOGIN_ON
 
@@ -85,11 +86,12 @@ void ChatServer::Run()
 							recvSockets.emplace_back(clientSocket);
 							dirtyFlag = true;
 
-							UserPtr newUser = AddSession(clientSocket);
+							UserPtr newUser = AddSession(clientSocket, clientAddr);
 							assert(nullptr != newUser); // 세션 생성 실패 - map인데 실패한다? 문제있음
 
 							std::cout << "[Client Accept] - " << clientSocket << std::endl;
 							newUser->SendChat(welcomeMsg);
+
 #ifndef LOGIN_ON
 							ProcessLogin(newUser, newUser->GetName());
 #endif // LOGIN_ON
@@ -101,7 +103,8 @@ void ChatServer::Run()
 						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
 						UserPtr user = m_sessionTable[readySoc];
 						assert(nullptr != user);
-						if (recvLength <= 0) //종료처리
+
+						if (recvLength == 0) //종료처리
 						{
 							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
 							assert(recvSockets.end() != delPos);
@@ -109,8 +112,16 @@ void ChatServer::Run()
 							dirtyFlag = true;
 							assert(1 == EraseSession(readySoc)); //싱글스레드에서 삭제실패? 문제있음
 
-							DisconnectUser(user);
+							g_userManager.DisconnectUser(user);
 							continue;
+						}
+						else if (recvLength < 0)
+						{
+							int errCode = WSAGetLastError();
+							if (EAGAIN != errCode)
+							{
+								error_display(user->GetAddr().c_str(), errCode);
+							}
 						}
 
 						user->PushData(buffer, recvLength);
@@ -249,18 +260,6 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 	}
 }
 
-void ChatServer::DisconnectUser(UserPtr& user)
-{
-	RoomPtr curRoom = user->GetRoom();
-	curRoom->Leave(user);
-
-	SOCKET userSocket = user->GetSocket();
-	user->SetSocket(INVALID_SOCKET);
-	g_userManager.EraseUser(user);
-	closesocket(userSocket);
-	std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
-}
-
 void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 {
 	if (nullptr == enterRoom)
@@ -281,9 +280,9 @@ void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 	}
 }
 
-UserPtr ChatServer::AddSession(SOCKET socket)
+UserPtr ChatServer::AddSession(SOCKET socket, SOCKADDR_IN addr)
 {
-	m_sessionTable.emplace(socket, new User(socket));
+	m_sessionTable.emplace(socket, new User(socket, addr));
 	if (nullptr != m_sessionTable[socket])
 	{
 		m_sessionTable[socket]->SetName(std::to_string(socket));
