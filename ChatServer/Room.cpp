@@ -50,7 +50,7 @@ bool Room::Leave(UserPtr &user)
 void Room::NotifyAll(const std::string& msg)
 {
 	/// [Room Name] - 메세지
-	std::string completeMsg(std::string("[") + m_name + std::string("] - ") + msg);
+	std::string completeMsg(std::string("[ROOM NOTIFY] - ") + msg);
 	for (auto& userPtr : m_userTable)
 	{
 		userPtr->SendChat(completeMsg);
@@ -75,7 +75,7 @@ std::string Room::GetUserList()
 	/// zipzip
 	/// hungry
 	/// ...
-	std::string userNameList{"==유저 목록==\r\n"};
+	std::string userNameList{"==방 참여자 목록==\r\n"};
 	for (const auto& user : m_userTable)
 	{
 		userNameList += "[" + user->GetName() + "]" + "\r\n";
@@ -160,7 +160,7 @@ std::string RoomManager::GetRoomList()
 	std::string roomNameList{ "==방 목록==\r\n" };
 	for (const auto& roomPair : m_roomTable)
 	{
-		roomNameList += "[" + std::to_string(roomPair.first) + "] " + roomPair.second->m_name + "\r\n";
+		roomNameList += "[" + std::to_string(roomPair.first) + "] " + roomPair.second->m_name + " (" + std::to_string(roomPair.second->m_userTable.size()) + "/" + std::to_string(roomPair.second->m_maxUser) + ")\r\n";
 	}
 	return roomNameList;
 }
