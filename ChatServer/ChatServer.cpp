@@ -324,7 +324,7 @@ void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 
 void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 {
-	RoomPtr& oldRoom = user->GetRoom();
+	RoomPtr oldRoom = user->GetRoom();
 	if (nullptr != oldRoom)
 	{
 		if (true == oldRoom->IsSameIdx(roomIdx))
@@ -381,14 +381,14 @@ void ChatServer::ProcessGetUserList(const UserPtr &user)
 	const RoomPtr userRoom = user->GetRoom();
 	if (nullptr != userRoom)
 	{
-		std::string& userList = userRoom->GetUserList();
+		std::string userList = userRoom->GetUserList();
 		user->SendChat(userList);
 	}
 }
 
 void ChatServer::ProcessGetRoomList(const UserPtr & user)
 {
-	std::string& roomList = g_roomManager.GetRoomList();
+	std::string roomList = g_roomManager.GetRoomList();
 	user->SendChat(roomList);
 }
 

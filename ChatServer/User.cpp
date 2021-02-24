@@ -1,15 +1,16 @@
 #include "User.h"
 #include "Room.h"
 
-void User::SendChat(const std::string &msg)
+int User::SendChat(const std::string &msg)
 {
-	if (m_socket == INVALID_SOCKET)
+	if (INVALID_SOCKET == m_socket)
 	{
 		std::cout << m_name << "has INVALID_SOCKET" << std::endl;
 		return;
 	}
 	std::string completeMsg = msg + "\r\n";
-	send(m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
+	int sendSize = send(m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
+	return sendSize;
 }
 
 RoomPtr User::GetRoom()

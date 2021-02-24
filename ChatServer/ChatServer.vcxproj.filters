@@ -31,7 +31,7 @@
       <Filter>ChatServer</Filter>
     </ClCompile>
     <ClCompile Include="CmdParser.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>ChatServer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -45,7 +45,7 @@
       <Filter>ChatServer</Filter>
     </ClInclude>
     <ClInclude Include="CmdParser.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>ChatServer</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -19,8 +19,9 @@ public:
 	/**
 	*@brief 유저에게 메세지를 전송한다.
 	*@param[in] msg 전송할 메세지.
+	*@return 전송한 바이트 수.
 	*/
-	void SendChat(const std::string& msg);
+	int SendChat(const std::string& msg);
 
 	/**
 	*@brief 유저가 있는 방의 포인터를 반환한다.
