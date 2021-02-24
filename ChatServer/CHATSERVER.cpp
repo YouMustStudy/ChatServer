@@ -97,7 +97,6 @@ void ChatServer::Run()
 
 							std::cout << "Client Accept - " << clientSocket << std::endl;
 							newUser->SendChat(welcomeMsg);
-
 #ifndef LOGIN_ON
 							ProcessHelp(newUser);
 							m_lobby->Enter(newUser);
@@ -252,6 +251,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			if (false == user->GetIsLogin())
 			{
 				user->SetLogin(param[1].str());
+				g_userManager.AddUser(user, param[1].str());
 #ifdef LOGIN_ON
 				ProcessHelp(user);
 				m_lobby->Enter(user);
@@ -275,7 +275,9 @@ void ChatServer::DisconnectUser(UserPtr& user)
 	/// ¼öÁ¤ ÇÊ¿ä(Ä¸½¶È­)
 	SOCKET userSocket = user->GetSocket();
 	closesocket(userSocket);
-	std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
+	std::string userName = user->GetName();
+	g_userManager.EraseUser(user);
+	std::cout << "[USER LOGOUT] - " << userName << std::endl;
 }
 
 void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
