@@ -2,7 +2,7 @@
 #pragma comment(lib, "ws2_32")
 
 ///NW Headers
-#include <WinSock2.h>
+#include <ws2tcpip.h>
 #include <fcntl.h>
 
 #include <iostream>
