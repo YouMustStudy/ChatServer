@@ -5,7 +5,7 @@
 #include <memory>
 
 class Room;
-typedef std::shared_ptr<Room> RoomPtr;
+using RoomPtr = std::shared_ptr<Room>;
 /**
 *@brief 유저 데이터를 관리한다.
 */
@@ -86,8 +86,8 @@ private:
 */
 class UserManager
 {
-	typedef std::shared_ptr<User> UserPtr;
-	typedef std::map<std::string, UserPtr> UserTable;
+	using UserPtr = std::shared_ptr<User>;
+	using UserTable = std::map<std::string, UserPtr>;
 
 public:
 	/**

@@ -29,8 +29,7 @@ enum CMD_TYPE
 */
 class CmdParser
 {
-	typedef std::shared_ptr<User> UserPtr;
-	typedef std::function<void(const UserPtr& user, void* data)> UserCallback;
+	using UserPtr = std::shared_ptr<User>;
 
 public:
 	CmdParser();

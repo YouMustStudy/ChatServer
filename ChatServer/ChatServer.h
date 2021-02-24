@@ -19,7 +19,7 @@
 static constexpr int BUF_SIZE = 1024;
 class ChatServer
 {
-	typedef std::map<SOCKET, UserPtr> sessionTable;
+	using sessionTable = std::map<SOCKET, UserPtr>;
 
 public:
 	ChatServer() :

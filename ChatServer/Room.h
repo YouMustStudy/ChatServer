@@ -7,7 +7,7 @@
 #include <iostream>
 
 class User;
-typedef std::shared_ptr<User> UserPtr;
+using UserPtr = std::shared_ptr<User>;
 
 class RoomManager;
 /**
@@ -17,8 +17,8 @@ class RoomManager;
 class Room
 {
 	friend RoomManager;
-	typedef std::set<UserPtr> UserTable;
-	typedef std::shared_ptr<Room> RoomPtr;
+	using UserTable = std::set<UserPtr>;
+	using RoomPtr = std::shared_ptr<Room>;
 
 public:
 	Room() : m_userTable(), m_maxUser(INT_MAX), m_name(), m_roomIdx(), m_destroyed(false) {};
@@ -89,8 +89,8 @@ private:
 */
 class RoomManager
 {
-	typedef std::shared_ptr<Room> RoomPtr;
-	typedef std::map<int, RoomPtr> RoomTable;
+	using RoomPtr = std::shared_ptr<Room>;
+	using RoomTable = std::map<int, RoomPtr>;
 
 public:
 	~RoomManager() {};

@@ -127,11 +127,11 @@ void ChatServer::Run()
 							}
 							else break;
 						}
-					}
 				}
 			}
 		}
 	}
+}
 }
 
 void ChatServer::Terminate()
@@ -162,13 +162,11 @@ bool ChatServer::InitWSA(short port)
 		std::cout << "Error - Bind()" << std::endl;
 		return false;
 	}
-
 	if (listen(m_listener, SOMAXCONN) == SOCKET_ERROR)
 	{
 		std::cout << "Error - Listen()" << std::endl;
 		return false;
 	}
-
 	return true;
 }
 
