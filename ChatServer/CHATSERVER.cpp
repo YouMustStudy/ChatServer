@@ -23,7 +23,6 @@ void ChatServer::Run()
 	/// Recv는 동기적으로 발생한다.
 	/// Accept, Disconnect 또한 동기적으로 발생.
 	/// => Recv용 소켓은 지역변수로 관리 가능.
-
 	std::deque<SOCKET> recvSockets;
 	recvSockets.emplace_back(m_listener);
 	std::vector<fd_set> masterFdSets;
@@ -212,14 +211,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		case CMD_MSG:
-			if (user->GetName() != param[1].str()) /// 송수신자가 동일하면 처리X
-			{
-				ProcessMsg(user, param[1].str(), param[2].str());
-			}
-			else
-			{
-				user->SendChat("본인에게는 전송할 수 없습니다.");
-			}
+			ProcessMsg(user, param[1].str(), param[2].str());
 			break;
 
 		case CMD_USERLIST:
@@ -231,18 +223,8 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		case CMD_CREATEROOM:
-		{
-			int maxUser = std::stoi(param[2].str());
-			if (maxUser > 1)
-			{
-				ProcessCreateRoom(user, param[1].str(), maxUser);
-			}
-			else
-			{
-				user->SendChat("방의 최대인원 수는 2 이상이어야 합니다.");
-			}
-		}
-		break;
+			ProcessCreateRoom(user, param[1].str(), std::stoi(param[2].str()));
+			break;
 
 		case CMD_ERROR:
 			ProcessError(user);
@@ -254,10 +236,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 		switch (cmd)
 		{
 		case CMD_LOGIN:
-			if (false == user->GetIsLogin())
-			{
-				ProcessLogin(user, param[1].str());
-			}
+			ProcessLogin(user, param[1].str());
 			break;
 
 		default:
@@ -279,7 +258,7 @@ void ChatServer::DisconnectUser(UserPtr& user)
 	std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
 }
 
-void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
+void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 {
 	if (nullptr == enterRoom)
 	{
@@ -292,6 +271,10 @@ void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
 		{
 			oldRoomPtr->Leave(user);
 		}
+	}
+	else
+	{
+		user->SendChat("인원수 초과로 입장할 수 없습니다.");
 	}
 }
 
@@ -311,16 +294,19 @@ size_t ChatServer::EraseSession(SOCKET socket)
 	return m_sessionTable.erase(socket);
 }
 
-bool ChatServer::ProcessLogin(UserPtr & user, const std::string & userName)
+bool ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 {
-	if (true == g_userManager.AddUser(user, userName))
+	if (false == user->GetIsLogin())
 	{
-		user->SetLogin(userName);
-		ProcessHelp(user);
-		m_lobby->Enter(user);
-		return true;
+		if (true == g_userManager.AddUser(user, userName))
+		{
+			user->SetLogin(userName);
+			ProcessHelp(user);
+			m_lobby->Enter(user);
+			return true;
+		}
+		user->SendChat("[입장실패] 중복인 ID입니다.");
 	}
-	user->SendChat("중복ID입니다.");
 	return false;
 }
 
@@ -348,7 +334,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 	RoomPtr newRoom = g_roomManager.GetRoom(roomIdx);
 	if (nullptr == newRoom)
 	{
-		user->SendChat("없는 방입니다.");
+		user->SendChat("없는 방번호입니다.");
 		return;
 	}
 	ExchangeRoom(user, newRoom);
@@ -372,12 +358,18 @@ void ChatServer::ProcessQuit(UserPtr &user)
 
 void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
 {
+	if (sender->GetName() != receiverName)
+	{
+		sender->SendChat("본인에게는 전송할 수 없습니다.");
+		return;
+	}
+
 	UserPtr receiver = g_userManager.GetUser(receiverName);
 	if (nullptr == receiver)
 	{
 		sender->SendChat("유저를 찾을 수 없습니다.");
 		return;
-	} 
+	}
 	receiver->SendChat("[" + sender->GetName() + "'s Msg] " + msg);
 }
 
@@ -399,14 +391,16 @@ void ChatServer::ProcessGetRoomList(const UserPtr & user)
 
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
-	if (maxUser < 1)
+	if (maxUser < 2)
 	{
+		user->SendChat("방의 최대인원 수는 2 이상이어야 합니다.");
 		return;
 	}
 	RoomPtr newRoom = g_roomManager.CreateRoom(roomName, maxUser);
 	if (nullptr == newRoom)
 	{
 		user->SendChat("방 생성 실패!!");
+		std::cout << "방 생성 실패" << std::endl;
 		return;
 	}
 	ExchangeRoom(user, newRoom);
