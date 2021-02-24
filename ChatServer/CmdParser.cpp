@@ -14,7 +14,7 @@ int CmdParser::Parse(std::string &data, std::smatch& param)
 	{
 		return CMD_CHAT;
 	}
-	for (int cmd = 0; cmd < m_regexs.size(); ++cmd)
+	for (int cmd = 0; cmd != CMD_COUNT; ++cmd)
 	{
 		if (true == std::regex_match(data, param, m_regexs[cmd]))
 		{
@@ -31,6 +31,7 @@ void CmdParser::Initialize()
 	m_regexs[CMD_ROOMLIST] = std::regex(R"(^\/roomlist$)");
 	m_regexs[CMD_USERLIST] = std::regex(R"(^\/userlist$)");
 	m_regexs[CMD_JOIN] = std::regex(R"(^\/join +([0-9]{1,})$)");
+	m_regexs[CMD_LOGIN] = std::regex(R"(^\/login +(\S{1,11})$)");
 	m_regexs[CMD_MSG] = std::regex(R"(^\/msg +(\S{1,}) +(.{1,})$)");
-	m_regexs[CMD_CREATEROOM] = std::regex(R"(^^\/create +(\S{1,}) +([0-9]{1,})$)");
+	m_regexs[CMD_CREATEROOM] = std::regex(R"(^\/create +(\S{1,}) +([0-9]{1,})$)");
 }

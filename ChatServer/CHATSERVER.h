@@ -19,10 +19,9 @@
 static constexpr int BUF_SIZE = 1024;
 class ChatServer
 {
-	typedef std::map<SOCKET, UserPtr> UserTable;
+	typedef std::map<SOCKET, UserPtr> sessionTable;
 
 public:
-
 	ChatServer() :
 		m_listener(INVALID_SOCKET),
 		m_lobby(nullptr)
@@ -38,7 +37,7 @@ public:
 
 private:
 	SOCKET m_listener;			/// Listen 소켓
-	UserTable m_userTable;		/// 유저 테이블
+	sessionTable m_sessionTable;/// 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
 	RoomManager m_roomMgr;		/// 룸 매니저
 	RoomPtr m_lobby;			/// 로비 포인터
 	CmdParser m_cmdParser;		/// 명령어 처리객체
@@ -51,6 +50,11 @@ private:
 	void DisconnectUser(UserPtr& user);
 	/// 방 교환용 함수. 인자 : user - 요청한 유저 포인터, enterRoom - 새로 입장할 방 포인터
 	void ExchangeRoom(UserPtr& user, RoomPtr& enterRoom);
+	/// 유저 접속 시 세션을 추가하는 함수. 인자 : socket - 세션의 소켓값, 반환 : 생성된 유저의 포인터
+	UserPtr AddSession(SOCKET socket);
+	/// 유저 종료 시 세션을 삭제하는 함수. 인자 : socket - 세션의 소켓값, 반환 : 삭제된 세션의 수
+	size_t EraseSession(SOCKET socket);
+
 
 	/// 명령어 처리 함수들.
 	/// 채팅 명령 처리. 인자 : sender - 요청 유저의 포인터, msg - 보낼 메세지

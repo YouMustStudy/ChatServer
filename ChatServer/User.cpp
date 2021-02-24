@@ -22,7 +22,7 @@ void User::SetRoom(const RoomPtr &roomPtr)
 	m_room = roomPtr;
 }
 
-void User::SetName(std::string & name)
+void User::SetName(const std::string & name)
 {
 	m_name = name;
 }
@@ -30,6 +30,17 @@ void User::SetName(std::string & name)
 void User::SetSocket(SOCKET socket)
 {
 	m_socket = socket;
+}
+
+bool User::GetIsLogin()
+{
+	return m_login;
+}
+
+void User::SetLogin(const std::string& name)
+{
+	m_login = true;
+	m_name = name;
 }
 
 void User::PushData(const char * data, int length)
@@ -52,3 +63,41 @@ SOCKET User::GetSocket()
 {
 	return m_socket;
 }
+
+UserManager & UserManager::Instance()
+{
+	static UserManager *userManager = new UserManager();
+	return *userManager;
+}
+
+UserPtr UserManager::GetUser(const std::string &userName)
+{
+	return m_userTable[userName];
+}
+
+bool UserManager::AddUser(UserPtr& user, const std::string& userName)
+{
+	user->SetName(userName);
+	m_userTable.emplace(userName, user);
+	return true;
+}
+
+size_t UserManager::EraseUser(const UserPtr & user)
+{
+	return m_userTable.erase(user->GetName());
+}
+
+std::string UserManager::GetUserList()
+{
+	std::string userNameList{ "==서버 내 유저 목록==\r\n" };
+	for (const auto& user : m_userTable)
+	{
+		userNameList += "[" + user.first + "]" + "\r\n";
+	}
+	return userNameList;
+}
+
+UserManager::UserManager() : m_userTable()
+{
+
+};

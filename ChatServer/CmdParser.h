@@ -13,12 +13,12 @@ enum CMD
 	CMD_ROOMLIST,
 	CMD_USERLIST,
 	CMD_JOIN,
+	CMD_LOGIN,
 	CMD_MSG, 
 	CMD_CREATEROOM,
 	CMD_ERROR,
 	CMD_COUNT
 };
-
 /*
 CmdParser
 유저가 보낸 문자열에서 명령어를 파싱
@@ -32,7 +32,6 @@ class CmdParser
 public:
 	CmdParser();
 	~CmdParser();
-
 	/// 문자열을 받아서 파싱 후 실행하는 함수. 인자 : user - 실행할 유저, data - 처리할 데이터
 	int Parse(std::string &data, std::smatch& result);
 

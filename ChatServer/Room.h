@@ -15,11 +15,12 @@ Room
 유저들이 모이는 하나의 단위
 채팅은 해당 방 내에서만 이뤄진다.
 */
+
 class Room
 {
 	friend RoomManager;
-	typedef std::shared_ptr<Room> RoomPtr;
 	typedef std::set<UserPtr> UserTable;
+	typedef std::shared_ptr<Room> RoomPtr;
 
 public:
 	Room() : m_userTable(), m_maxUser(INT_MAX), m_name(), m_roomIdx(), m_destroyed(false) {};
@@ -58,9 +59,9 @@ RoomManager
 방을 관리하는 매니저 객체.
 생성, 삭제, 검색, 목록 등을 처리한다.
 */
-typedef std::shared_ptr<Room> RoomPtr;
 class RoomManager
 {
+	typedef std::shared_ptr<Room> RoomPtr;
 	typedef std::map<int, RoomPtr> RoomTable;
 
 public:

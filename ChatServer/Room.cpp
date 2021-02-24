@@ -4,7 +4,6 @@
 constexpr int LOBBY = 0;
 
 RoomManager* Room::m_roomMgr = nullptr;
-
 void Room::SetWeakPtr(RoomPtr &myself)
 {
 	if (myself.get() == this) 
