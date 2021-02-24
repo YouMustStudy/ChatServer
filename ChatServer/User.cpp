@@ -5,6 +5,7 @@ void User::SendChat(const std::string &msg)
 {
 	if (m_socket == INVALID_SOCKET)
 	{
+		std::cout << m_name << "has INVALID_SOCKET" << std::endl;
 		return;
 	}
 	std::string completeMsg = msg + "\r\n";
