@@ -21,7 +21,7 @@ void ChatServer::Run()
 	std::cout << "[Start Accept]" << std::endl;
 
 	/// Recv는 동기적으로 발생한다.
-	/// Accept, Disconnect 또한 동기적으로 발생.
+	/// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능.
 	/// => Recv용 소켓은 지역변수로 관리 가능.
 	std::deque<SOCKET> recvSockets;
 	recvSockets.emplace_back(m_listener);
@@ -222,6 +222,10 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			ProcessGetRoomList(user);
 			break;
 
+		case CMD_ALLUSERLIST:
+			ProcessGetAllUserList(user);
+			break;
+
 		case CMD_CREATEROOM:
 			ProcessCreateRoom(user, param[1].str(), std::stoi(param[2].str()));
 			break;
@@ -305,7 +309,7 @@ bool ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 			m_lobby->Enter(user);
 			return true;
 		}
-		user->SendChat("[입장실패] 중복인 ID입니다.");
+		user->SendChat("[입장실패] ID가 중복됩니다.");
 	}
 	return false;
 }
@@ -389,6 +393,11 @@ void ChatServer::ProcessGetRoomList(const UserPtr & user)
 	user->SendChat(roomList);
 }
 
+void ChatServer::ProcessGetAllUserList(const UserPtr & user)
+{
+	user->SendChat(g_userManager.GetUserList());
+}
+
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
 	if (maxUser < 2)
@@ -415,7 +424,8 @@ void ChatServer::ProcessHelp(const UserPtr & user)
 [쪽지] /msg [상대방] [메세지]\r\n\
 [방 생성] /create [방이름] [최대인원]\r\n\
 [방 목록] /roomlist\r\n\
-[유저 목록] /userlist\r\n" };
+[방 내 유저 목록] /userlist\r\n\
+[서버 내 유저 목록] /alluserlist\r\n" };
 	user->SendChat(helpCmd);
 }
 
