@@ -212,7 +212,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		case CMD_MSG:
-			if (user->GetName() == param[1].str()) /// 송수신자가 동일하면 처리X
+			if (user->GetName() != param[1].str()) /// 송수신자가 동일하면 처리X
 			{
 				ProcessMsg(user, param[1].str(), param[2].str());
 			}
