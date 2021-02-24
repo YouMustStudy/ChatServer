@@ -60,7 +60,7 @@ void Room::NotifyAll(const std::string& msg)
 void Room::SendChat(const UserPtr sender, const std::string& msg)
 {
 	/// [유저ID] : 메세지
-	std::string completeMsg(std::string("[") + sender->GetName() + std::string("] : ") + msg);
+	std::string completeMsg(std::string("[") + sender->GetName() + std::string("] ") + msg);
 	for (auto& userPtr: m_userTable)
 	{
 		if (userPtr != sender)

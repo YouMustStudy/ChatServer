@@ -98,9 +98,7 @@ void ChatServer::Run()
 							std::cout << "[Client Accept] - " << clientSocket << std::endl;
 							newUser->SendChat(welcomeMsg);
 #ifndef LOGIN_ON
-							g_userManager.AddUser(newUser, newUser->GetName());
-							ProcessHelp(newUser);
-							m_lobby->Enter(newUser);
+							ProcessLogin(newUser, newUser->GetName());
 #endif // LOGIN_ON
 						}
 					}
@@ -214,7 +212,14 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		case CMD_MSG:
-			ProcessMsg(user, param[1].str(), param[2].str());
+			if (user->GetName() == param[1].str()) /// 송수신자가 동일하면 처리X
+			{
+				ProcessMsg(user, param[1].str(), param[2].str());
+			}
+			else
+			{
+				user->SendChat("본인에게는 전송할 수 없습니다.");
+			}
 			break;
 
 		case CMD_USERLIST:
@@ -251,13 +256,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 		case CMD_LOGIN:
 			if (false == user->GetIsLogin())
 			{
-				user->SetLogin(param[1].str());
-				g_userManager.AddUser(user, param[1].str());
-#ifdef LOGIN_ON
-				ProcessHelp(user);
-				m_lobby->Enter(user);
-#endif
-				std::cout << "[USER LOGIN] - " + param[1].str() << std::endl;
+				ProcessLogin(user, param[1].str());
 			}
 			break;
 
@@ -276,9 +275,8 @@ void ChatServer::DisconnectUser(UserPtr& user)
 	/// 수정 필요(캡슐화)
 	SOCKET userSocket = user->GetSocket();
 	closesocket(userSocket);
-	std::string userName = user->GetName();
 	g_userManager.EraseUser(user);
-	std::cout << "[USER LOGOUT] - " << userName << std::endl;
+	std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
 }
 
 void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
@@ -299,7 +297,7 @@ void ChatServer::ExchangeRoom(UserPtr & user, RoomPtr &enterRoom)
 
 UserPtr ChatServer::AddSession(SOCKET socket)
 {
-	m_sessionTable.emplace(std::make_pair(socket, new User(socket)));
+	m_sessionTable.emplace(socket, new User(socket));
 	if (nullptr != m_sessionTable[socket])
 	{
 		m_sessionTable[socket]->SetName(std::to_string(socket));
@@ -311,6 +309,19 @@ UserPtr ChatServer::AddSession(SOCKET socket)
 size_t ChatServer::EraseSession(SOCKET socket)
 {
 	return m_sessionTable.erase(socket);
+}
+
+bool ChatServer::ProcessLogin(UserPtr & user, const std::string & userName)
+{
+	if (true == g_userManager.AddUser(user, userName))
+	{
+		user->SetLogin(userName);
+		ProcessHelp(user);
+		m_lobby->Enter(user);
+		return true;
+	}
+	user->SendChat("중복ID입니다.");
+	return false;
 }
 
 void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
@@ -359,14 +370,15 @@ void ChatServer::ProcessQuit(UserPtr &user)
 	ExchangeRoom(user, m_lobby);
 }
 
-void ChatServer::ProcessMsg(const UserPtr& sender, const UserPtr& receiver, const std::string& msg)
-{
-	sender->SendChat("로비에서는 나가실 수 없습니다.");
-}
-
 void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
 {
-	sender->SendChat("로비에서는 나가실 수 없습니다.");
+	UserPtr receiver = g_userManager.GetUser(receiverName);
+	if (nullptr == receiver)
+	{
+		sender->SendChat("유저를 찾을 수 없습니다.");
+		return;
+	} 
+	receiver->SendChat("[" + sender->GetName() + "'s Msg] " + msg);
 }
 
 void ChatServer::ProcessGetUserList(const UserPtr &user)
@@ -406,7 +418,7 @@ void ChatServer::ProcessHelp(const UserPtr & user)
 "\r\n== 명령어 목록 == \r\n\
 [입장] /join [방번호]\r\n\
 [퇴장] /quit\r\n\
-[쪽지] /msg [상대방] [메세지] - 미구현\r\n\
+[쪽지] /msg [상대방] [메세지]\r\n\
 [방 생성] /create [방이름] [최대인원]\r\n\
 [방 목록] /roomlist\r\n\
 [유저 목록] /userlist\r\n" };

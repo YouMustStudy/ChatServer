@@ -53,17 +53,17 @@ private:
 	UserPtr AddSession(SOCKET socket);
 	/// 유저 종료 시 세션을 삭제하는 함수. 인자 : socket - 세션의 소켓값, 반환 : 삭제된 세션의 수
 	size_t EraseSession(SOCKET socket);
-
+	
 
 	/// 명령어 처리 함수들.
+	/// 유저 로그인 처리 함수. 인자 : user - 요청한 유저 포인터, userName - 로그인할 유저의 이름, 반환 : 성공여부
+	bool ProcessLogin(UserPtr &user, const std::string& userName);
 	/// 채팅 명령 처리. 인자 : sender - 요청 유저의 포인터, msg - 보낼 메세지
 	void ProcessChat(const UserPtr& sender, const std::string& msg);
 	/// 방 입장 처리. 인자 : user - 입장할 유저의 포인터, roomIdx - 입장할 방의 인덱스(RoomManager의 Key)
 	void ProcessJoin(UserPtr& user, int roomIdx);
 	/// 방 퇴장 처리. 인자 : user - 방에서 나갈 유저의 포인터
 	void ProcessQuit(UserPtr& user);
-	/// 쪽지 명령 처리. 인자 : sender - 보낸 유저의 포인터, receiver - 받는 유저의 포인터, msg - 보낼 메세지
-	void ProcessMsg(const UserPtr& sender, const UserPtr& receiver, const std::string& msg);
 	/// 쪽지 명령 처리. 인자 : sender - 보낸 유저의 포인터, receiver - 받는 유저의 이름, msg - 보낼 메세지
 	void ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg);
 	/// 방 내부 인원의 목록 전송. 인자 : user - 요청 유저의 포인터

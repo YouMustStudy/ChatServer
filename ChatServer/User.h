@@ -41,6 +41,10 @@ private:
 	bool m_login;
 };
 
+/*
+User
+'로그인한' 유저 관리 클래스
+*/
 class UserManager
 {
 	typedef std::shared_ptr<User> UserPtr;
@@ -48,13 +52,16 @@ class UserManager
 
 public:
 	static UserManager& Instance();
-
+	///이름으로 유저의 포인터를 획득하는 함수. 인자 : userName - 검색할 유저 이름, 반환 : 검색된 유저의 포인터, 실패시 nullptr 반환
 	UserPtr GetUser(const std::string& userName);
+	///목록에 유저 추가. 인자 : user - 추가될 유저의 포인터, userName - 추가될 유저의 이름, 반환값 : 성공여부, 이름 중복 시 false 반환
 	bool AddUser(UserPtr& user, const std::string& userName);
+	///목록에서 유저 삭제. 인자 : user - 삭제될 유저의 포인터, 반환 : 삭제된 수
 	size_t EraseUser(const UserPtr& user);
+	///로그인한 모든 유저의 목록 반환.
 	std::string GetUserList();
 private:
 	UserManager();
-	UserTable m_userTable;
+	UserTable m_userTable;			///유저 저장용 컨테이너
 };
 #define g_userManager (UserManager::Instance())

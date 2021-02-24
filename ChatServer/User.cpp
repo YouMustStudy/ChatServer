@@ -72,14 +72,22 @@ UserManager & UserManager::Instance()
 
 UserPtr UserManager::GetUser(const std::string &userName)
 {
-	return m_userTable[userName];
+	if (0 < m_userTable.count(userName))
+	{
+		return m_userTable[userName];
+	}
+	return nullptr;
 }
 
 bool UserManager::AddUser(UserPtr& user, const std::string& userName)
 {
-	user->SetName(userName);
-	m_userTable.emplace(userName, user);
-	return true;
+	if (0 == m_userTable.count(userName))
+	{
+		user->SetLogin(userName);
+		m_userTable.emplace(userName, user);
+		return true;
+	}
+	return false;
 }
 
 size_t UserManager::EraseUser(const UserPtr & user)
