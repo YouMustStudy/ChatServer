@@ -23,9 +23,7 @@ class Room
 	using RoomPtr = std::shared_ptr<Room>;
 
 public:
-	Room() : m_userTable(), m_maxUser(INT_MAX), m_name(), m_roomIdx(), m_destroyed(false) {};
-	Room(const std::string& name, int idx, int maxUser) : m_userTable(), m_maxUser(maxUser), m_name(name), m_roomIdx(idx), m_destroyed(false) {};
-	~Room() {};
+	Room(const std::string& name, int idx, int maxUser) : m_maxUser(maxUser), m_name(name), m_roomIdx(idx) {};
 
 	/**
 	*@brief 자기 자신의 weak_ptr을 저장하는 함수, 유저가 방에 입장 시 유저의 방 포인터를 본인의 것으로 수정하기 위해 필요하다.
@@ -75,12 +73,12 @@ public:
 	bool IsSameIdx(int idx);
 
 private:
-	UserTable m_userTable;				///< 방 내 유저 리스트
-	std::string m_name;					///< 방 이름
-	int m_roomIdx;						///< 방의 고유번호
-	int m_maxUser;						///< 방 최대인원 수
-	bool m_destroyed;					///< 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
-	std::weak_ptr<Room> m_selfPtr;		///< 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
+	UserTable m_userTable;						///< 방 내 유저 리스트
+	std::string m_name;							///< 방 이름
+	int m_roomIdx{-1};							///< 방의 고유번호
+	int m_maxUser{0};							///< 방 최대인원 수
+	bool m_destroyed{false};					///< 삭제된 방에 뒤늦게 입장하는 것을 방지하는 플래그
+	std::weak_ptr<Room> m_selfPtr;				///< 본인의 shared_ptr 획득용 포인터(방 입장 시 사용)
 };
 
 
@@ -95,8 +93,6 @@ class RoomManager
 	using RoomTable = std::map<int, RoomPtr>;
 
 public:
-	~RoomManager() {};
-
 	/**
 	*@brief 방을 테이블에 생성한다.
 	*@param[in] name 생성할 방의 이름.
@@ -133,7 +129,7 @@ public:
 
 private:
 	RoomTable m_roomTable;				///< 방을 관리하는 테이블
-	int m_genRoomCnt;					///< 현재까지 생성된 방의 수
+	int m_genRoomCnt{0};				///< 현재까지 생성된 방의 수
 	std::stack<int> m_reuseRoomCnt;		///< 방 인덱스 재사용 저장 컨테이너
 
 	RoomManager();

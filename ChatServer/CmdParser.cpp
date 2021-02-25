@@ -4,10 +4,6 @@ CmdParser::CmdParser() : m_regexs(CMD_COUNT-1)
 	Initialize();
 }
 
-CmdParser::~CmdParser()
-{
-}
-
 int CmdParser::Parse(const std::string &data, std::smatch& param)
 {
 	//명령어는 '/'으로 시작한다.

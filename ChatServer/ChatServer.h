@@ -22,12 +22,6 @@ class ChatServer
 	using sessionTable = std::map<SOCKET, UserPtr>;
 
 public:
-	ChatServer() :
-		m_listener(INVALID_SOCKET),
-		m_lobby(nullptr)
-	{};
-	~ChatServer() {};
-
 	/**
 	*@brief 서버를 초기화한다.
 	*@param[in] 서버의 포트 번호.
@@ -46,10 +40,10 @@ public:
 	void Terminate();
 
 private:
-	SOCKET m_listener;				///< Listen 소켓
-	sessionTable m_sessionTable;	///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
-	RoomPtr m_lobby;				///< 로비의 포인터
-	CmdParser m_cmdParser;			///< 명령어 처리객체
+	SOCKET m_listener{INVALID_SOCKET};				///< Listen 소켓
+	sessionTable m_sessionTable;					///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
+	RoomPtr m_lobby{nullptr};						///< 로비의 포인터
+	CmdParser m_cmdParser;							///< 명령어 처리객체
 
 	/**
 	*@brief WSA환경 초기화.

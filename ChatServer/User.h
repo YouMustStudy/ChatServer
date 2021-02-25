@@ -12,7 +12,6 @@ using RoomPtr = std::shared_ptr<Room>;
 class User
 {
 public:
-	User() : m_socket(INVALID_SOCKET), m_name(), m_data(), m_room(nullptr), m_login(false), m_isAlive(true) {};
 	User(SOCKET socket, SOCKADDR_IN addr);
 	~User() {};
 
@@ -88,14 +87,14 @@ public:
 	*@param[in] length 입력할 데이터의 길이.
 	*/
 	void PushData(const char* data, int length);
-	std::string m_data;		///< 유저 버퍼, 'select thread'에서만 접근한다.
+	std::string m_data;					///< 유저 버퍼, 'select thread'에서만 접근한다.
 private:
-	std::string m_name;		///< 유저 닉네임
-	RoomPtr m_room;			///< 입장한 방 포인터
-	bool m_login;			///< 로그인 여부
-	bool m_isAlive;			///< 세션 생존 여부
-	SOCKET m_socket;
-	std::string m_addr;		///< 유저의 주소 저장 - [IP:PORT]
+	std::string m_name;					///< 유저 닉네임
+	RoomPtr m_room{nullptr};			///< 입장한 방 포인터
+	bool m_login{false};				///< 로그인 여부
+	bool m_isAlive{true};				///< 세션 생존 여부
+	SOCKET m_socket{INVALID_SOCKET};	///< 유저의 소켓
+	std::string m_addr;					///< 유저의 주소 저장 - [IP:PORT]
 	
 };
 

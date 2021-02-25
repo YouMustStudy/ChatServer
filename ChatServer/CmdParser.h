@@ -33,7 +33,6 @@ class CmdParser
 
 public:
 	CmdParser();
-	~CmdParser();
 
 	/**
 	*@brief 문자열을 받아서 명령 타입, 인수로 나눠준다.
