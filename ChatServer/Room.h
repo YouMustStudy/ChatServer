@@ -96,9 +96,10 @@ public:
 	*@brief 방을 테이블에 생성한다.
 	*@param[in] name 생성할 방의 이름.
 	*@param[in] maxUser 최대 인원 제한 수.
+	*@param[in] userLimit 해당 방을 생성할 때 최대 인원 수를 제한할 것인지 여부.
 	*@return 생성된 방의 RoomPtr, 실패 시 nullptr.
 	*/
-	RoomPtr CreateRoom(const std::string& name, int maxUser);
+	RoomPtr CreateRoom(const std::string& name, int maxUser, bool userLimit = true);
 
 	/**
 	*@brief 방을 테이블에서 제거한다.

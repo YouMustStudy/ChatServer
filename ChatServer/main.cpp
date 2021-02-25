@@ -23,18 +23,27 @@ int main(int argc, char** argv)
 	
 	setlocale(LC_ALL, "KOREAN");
 	ChatServer chatServer;
+	bool isOk = false;
 	//입력된 포트가 있으면 해당 포트로 초기화.
 	if (true == customPortFlag)
 	{
-		chatServer.Initialize(customPort);
+		isOk = chatServer.Initialize(customPort);
 	}
 	else
 	//없으면 기본 포트로 초기화.
 	{
-		chatServer.Initialize();
+		isOk = chatServer.Initialize();
 	}
 
-	chatServer.Run();
-	chatServer.Terminate();
-	return 0;
+	if (true == isOk)
+	{
+		chatServer.Run();
+		chatServer.Terminate();
+		return 0;
+	}
+	else
+	{
+		std::cout << "서버 초기화 실패" << std::endl;
+		return -1;
+	}
 }

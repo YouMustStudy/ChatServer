@@ -78,7 +78,6 @@ void Room::SendChat(const UserPtr& sender, const std::string& msg)
 	{
 		return;
 	}
-
 	// [유저ID] 메세지
 	std::string completeMsg(sender->GetName() + " " + msg);
 	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
@@ -115,14 +114,20 @@ RoomManager::RoomManager() : m_genRoomCnt(), m_roomTable()
 {
 }
 
-RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
+RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser, bool userLimit)
 {
-	//입장인원 제한이 최소 수보다 작다면 생성 불가.
-	if (maxUser < MINUSER_NUM)
-	{
-		return nullptr;
+	//입장인원 제한이 최소최대 수 제한을 벗어난다면 생성 불가.
+	if (true == userLimit) {
+		if (MINUSER_NUM > maxUser ||
+			MAXUSER_NUM < maxUser)
+		{
+			return nullptr;
+		}
 	}
-
+	else
+	{
+		maxUser = INT_MAX;
+	}
 	int roomIdx{0};
 	if (false == m_reuseRoomCnt.empty())	// 스택에서 재사용 가능한 인덱스 있는지 확인
 	{

@@ -124,7 +124,7 @@ void ChatServer::Run()
 
 							//세션 테이블 삭제
 							Logger::Log("[SESSION Out] " + user->GetAddr());
-							assert(1 == EraseSession(readySoc)); 
+							assert(1 == EraseSession(readySoc));
 
 							if (recvLength < 0) //에러코드 핸들링
 							{
@@ -195,7 +195,7 @@ bool ChatServer::InitWSA(short port)
 bool ChatServer::InitLobby()
 {
 	// 로비 생성, 로비는 사실상 인원제한이 없다.
-	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX);
+	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX, false);
 	if (nullptr == m_lobby)
 		return false;
 	m_lobby->SetWeakPtr(m_lobby);
@@ -204,6 +204,9 @@ bool ChatServer::InitLobby()
 
 void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
+	static std::string alreadyLoginMsg{ "이미 로그인되어있습니다." };
+	static std::string plzLoginMsg{ "로그인을 먼저 해주세요." };
+
 	if (nullptr == user)
 	{
 		return;
@@ -225,7 +228,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		case CMD_LOGIN:
-			user->SendChat("이미 로그인되어있습니다.");
+			user->SendChat(alreadyLoginMsg);
 			break;
 
 		case CMD_CHAT:
@@ -275,7 +278,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 			break;
 
 		default:
-			user->SendChat("로그인을 먼저 해주세요.");
+			user->SendChat(plzLoginMsg);
 			break;
 		}
 	}
@@ -283,6 +286,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 
 void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 {
+	static std::string manyPeopleMsg{ "인원수 초과로 입장할 수 없습니다." };
 	if (nullptr == user ||
 		nullptr == enterRoom)
 	{
@@ -301,7 +305,7 @@ void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 	else
 	{
 		//새로운 방에 입장 실패 시 오류 메세지 전송
-		user->SendChat("인원수 초과로 입장할 수 없습니다.");
+		user->SendChat(manyPeopleMsg);
 	}
 }
 
@@ -324,6 +328,7 @@ size_t ChatServer::EraseSession(SOCKET socket)
 
 void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 {
+	static std::string errMsg{ "[로그인 실패] ID가 중복됩니다." };
 	if (nullptr == user)
 	{
 		return;
@@ -339,7 +344,7 @@ void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 			m_lobby->Enter(user);
 			return;
 		}
-		user->SendChat("[입장실패] ID가 중복됩니다.");
+		user->SendChat(errMsg);
 	}
 	return;
 }
@@ -360,6 +365,9 @@ void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 
 void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 {
+	static std::string alreadyExistMsg{ "현재 있는 방입니다." };
+	static std::string noExistMsg{ "없는 방번호입니다." };
+
 	if (nullptr == user)
 	{
 		return;
@@ -371,7 +379,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 		//같은 방으로의 재입장은 차단.
 		if (true == oldRoom->IsSameIdx(roomIdx))
 		{
-			user->SendChat("현재 있는 방입니다.");
+			user->SendChat(alreadyExistMsg);
 			return;
 		}
 	}
@@ -381,7 +389,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 	if (nullptr == newRoom)
 	{
 		//인덱스에 해당하는 방이 없다면 오류 메세지 전송.
-		user->SendChat("없는 방번호입니다.");
+		user->SendChat(noExistMsg);
 		return;
 	}
 	ExchangeRoom(user, newRoom);
@@ -389,6 +397,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 
 void ChatServer::ProcessQuit(UserPtr &user)
 {
+	static std::string errMsg{ "로비에서는 나가실 수 없습니다." };
 	if (nullptr == user)
 	{
 		return;
@@ -404,7 +413,7 @@ void ChatServer::ProcessQuit(UserPtr &user)
 	//기존방 -> 로비로의 이동을 처리.
 	if (m_lobby == userRoom)
 	{
-		user->SendChat("로비에서는 나가실 수 없습니다.");
+		user->SendChat(errMsg);
 		return;
 	}
 	ExchangeRoom(user, m_lobby);
@@ -412,6 +421,8 @@ void ChatServer::ProcessQuit(UserPtr &user)
 
 void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
 {
+	static std::string cantSendSamePeopleMsg{ "본인에게는 전송할 수 없습니다." };
+	static std::string cantFindPeopleMsg{ "유저를 찾을 수 없습니다." };
 	if (nullptr == sender)
 	{
 		return;
@@ -420,7 +431,7 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	// 본인에게는 전송할 수 없다.
 	if (sender->GetName() == ("[" + receiverName + "]"))
 	{
-		sender->SendChat("본인에게는 전송할 수 없습니다.");
+		sender->SendChat(cantSendSamePeopleMsg);
 		return;
 	}
 
@@ -428,7 +439,7 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	const UserPtr receiver = g_userManager.GetUser(receiverName);
 	if (nullptr == receiver)
 	{
-		sender->SendChat("유저를 찾을 수 없습니다.");
+		sender->SendChat(cantFindPeopleMsg);
 		return;
 	}
 	receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + msg);
@@ -474,14 +485,16 @@ void ChatServer::ProcessGetAllUserList(const UserPtr & user)
 
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
+	static std::string errMsg{ "방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
 	if (nullptr == user)
 	{
 		return;
 	}
-
-	if (maxUser < MINUSER_NUM)
+	if (MINUSER_NUM > maxUser ||
+		MAXUSER_NUM < maxUser
+		)
 	{
-		user->SendChat("방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상이어야 합니다.");
+		user->SendChat(errMsg);
 		return;
 	}
 	//방 생성후 유저 입장
@@ -489,6 +502,7 @@ void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, 
 	if (nullptr == newRoom)
 	{
 		Logger::Log("[Error] - 방 생성 실패");
+		user->SendChat("방 생성에 실패하였습니다.");
 		return;
 	}
 	ExchangeRoom(user, newRoom);
@@ -517,7 +531,6 @@ void ChatServer::ProcessError(const UserPtr & user)
 	{
 		return;
 	}
-
 	//명령어 목록에 없는 명령어가 왔을 시 처리.
 	static std::string wrongCmd{ "잘못된 명령어 형식입니다." };
 	user->SendChat(wrongCmd);
