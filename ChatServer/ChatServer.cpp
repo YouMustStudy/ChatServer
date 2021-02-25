@@ -465,7 +465,7 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	{
 		std::string noBackWhiteSpaceMsg = msg;
 		m_cmdParser.EraseBackWhiteSpace(noBackWhiteSpaceMsg);
-		if (true == msg.empty())
+		if (true == noBackWhiteSpaceMsg.empty())
 		{
 			sender->SendChat(noMsg);
 			return;
