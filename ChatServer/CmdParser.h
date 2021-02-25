@@ -41,6 +41,12 @@ public:
 	*/
 	int Parse(const std::string &data, std::smatch& result);
 
+	/**
+	*@brief 문자열을 받아서 맨 뒤에 있는 공백문자만 제거한다.
+	*@param[in] data 처리할 문자열.
+	*@return 공백문자가 제거된 문자열.
+	*/
+	void EraseBackWhiteSpace(std::string& data);
 private:
 	std::vector<std::regex> m_regexs;	///> 명령어 파싱용 정규표현식 객체
 

@@ -438,6 +438,8 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 {
 	static std::string cantSendSamePeopleMsg{ "본인에게는 전송할 수 없습니다." };
 	static std::string cantFindPeopleMsg{ "유저를 찾을 수 없습니다." };
+	static std::string noMsg{ "공백 메세지는 전송할 수 없습니다." };
+	
 	if (nullptr == sender)
 	{
 		return;
@@ -455,6 +457,20 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	if (nullptr == receiver)
 	{
 		sender->SendChat(cantFindPeopleMsg);
+		return;
+	}
+
+	//CmdParser는 무조건 msg가 한 글자 이상 들어옴을 보장한다.
+	if (' ' == msg.back()) 
+	{
+		std::string noBackWhiteSpaceMsg = msg;
+		m_cmdParser.EraseBackWhiteSpace(noBackWhiteSpaceMsg);
+		if (true == msg.empty())
+		{
+			sender->SendChat(noMsg);
+			return;
+		}
+		receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + noBackWhiteSpaceMsg);
 		return;
 	}
 	receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + msg);
