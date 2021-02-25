@@ -25,13 +25,13 @@ int CmdParser::Parse(const std::string& data, std::smatch& param)
 
 void CmdParser::Initialize()
 {
-	m_regexs[CMD_HELP] = std::regex(R"((?i)^\/help$)");
-	m_regexs[CMD_QUIT] = std::regex(R"((?i)^\/quit$)");
-	m_regexs[CMD_ROOMLIST] = std::regex(R"((?i)^\/roomlist$)");
-	m_regexs[CMD_USERLIST] = std::regex(R"((?i)^\/userlist$)");
-	m_regexs[CMD_ALLUSERLIST] = std::regex(R"((?i)^\/alluserlist$)");
-	m_regexs[CMD_JOIN] = std::regex(R"((?i)^\/join +([0-9]{1,})$)");
-	m_regexs[CMD_LOGIN] = std::regex(R"((?i)^\/login +(\S{1,10})$)");
-	m_regexs[CMD_MSG] = std::regex(R"((?i)^\/msg +(\S{1,}) +(.{1,})$)");
-	m_regexs[CMD_CREATEROOM] = std::regex(R"((?i)^\/create +(\S{1,}) +([0-9]{1,})$)");
+	m_regexs[CMD_HELP] = std::regex(R"(^\/help *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_QUIT] = std::regex(R"(^\/quit *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_ROOMLIST] = std::regex(R"(^\/roomlist *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_USERLIST] = std::regex(R"(^\/userlist *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_ALLUSERLIST] = std::regex(R"(^\/alluserlist *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_JOIN] = std::regex(R"(^\/join +([0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_LOGIN] = std::regex(R"(^\/login +(\S+) *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_MSG] = std::regex(R"(^\/msg +(\S+) +(.+ *\S)$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_CREATEROOM] = std::regex(R"(^\/create +(\S+) +([0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
 }
