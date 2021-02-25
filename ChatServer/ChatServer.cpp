@@ -110,7 +110,7 @@ void ChatServer::Run()
 						UserPtr user = m_sessionTable[readySoc];
 						assert(nullptr != user);
 
-						if (recvLength == 0) //종료처리
+						if (recvLength <= 0) //종료처리
 						{
 							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
 							assert(recvSockets.end() != delPos);
@@ -119,15 +119,13 @@ void ChatServer::Run()
 							assert(1 == EraseSession(readySoc)); //싱글스레드에서 삭제실패? 문제있음
 
 							g_userManager.DisconnectUser(user);
-							continue;
-						}
-						else if (recvLength < 0)
-						{
-							int errCode = WSAGetLastError();
-							if (EAGAIN != errCode)
+
+							if (recvLength < 0) //에러코드 검출
 							{
+								int errCode = WSAGetLastError();
 								error_display(user->GetAddr().c_str(), errCode);
 							}
+							continue;
 						}
 
 						user->PushData(buffer, recvLength);

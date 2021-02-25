@@ -21,14 +21,14 @@ void User::SendChat(const std::string &msg)
 	int sendSize = send(m_socket, completeMsg.c_str(), static_cast<int>(completeMsg.size()), 0);
 
 	//전송 후 예외처리
-	if (sendSize == 0) // 일반적인 접속종료
+	if (sendSize <= 0) // 일반적인 접속종료
 	{
 		g_userManager.DisconnectUser(m_name);
-	}
-	else if (sendSize < 0) // 에러상황
-	{
-		int errCode = WSAGetLastError();
-		error_display(m_addr.c_str() ,errCode);
+		if (sendSize < 0)
+		{
+			int errCode = WSAGetLastError();
+			error_display(m_addr.c_str(), errCode);
+		}
 	}
 }
 
