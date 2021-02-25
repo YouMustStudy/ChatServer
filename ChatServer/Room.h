@@ -38,7 +38,6 @@ public:
 	*/
 	bool Enter(UserPtr &user);
 
-	
 	/**
 	*@brief 방에서 유저를 퇴장시킨다. 동시에 남은 인원에게 유저의 퇴장을 알린다. 남은 인원이 없을 시 방을 제거한다.
 	*@param[in] user 퇴장할 유저의 포인터.

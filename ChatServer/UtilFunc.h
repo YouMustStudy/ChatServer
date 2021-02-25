@@ -7,7 +7,7 @@
 *@brief 현재 시간을 반환한다.
 *@return [0000-00-00 HH:MM:SS] 형식의 문자열을 반환한다.
 */
-std::string get_time();
+std::string GetTime();
 
 /**
 *@brief 문자열에서 포트를 추출한다.

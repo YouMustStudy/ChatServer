@@ -1,12 +1,12 @@
 #include "User.h"
 #include "Room.h"
-#include "Error.h"
+#include "Logger.h"
 
 User::User(SOCKET socket, SOCKADDR_IN addr) : m_socket(socket), m_name(), m_data(), m_room(nullptr), m_login(false), m_isAlive(true), m_addr()
 {
 	char addrArray[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &addr, addrArray, INET_ADDRSTRLEN);
-	m_name = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(addr.sin_port)) + "]";
+	m_addr = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(addr.sin_port)) + "]";
 }
 
 void User::SendChat(const std::string &msg)
@@ -14,7 +14,7 @@ void User::SendChat(const std::string &msg)
 	//만료된 소켓에는 전송하지 않는다.
 	if (INVALID_SOCKET == m_socket)
 	{
-		std::cout << m_name << "has INVALID_SOCKET" << std::endl;
+		Logger::Log("[ERROR] " + m_addr + " - INVALID_SOCKET에 전송");
 		return;
 	}
 	std::string completeMsg = msg + "\r\n";
@@ -24,10 +24,9 @@ void User::SendChat(const std::string &msg)
 	if (sendSize <= 0) // 일반적인 접속종료
 	{
 		g_userManager.DisconnectUser(m_name);
-		if (sendSize < 0)
+		if (sendSize < 0) // 에러코드 핸들링
 		{
-			int errCode = WSAGetLastError();
-			error_display(m_addr.c_str(), errCode);
+			Logger::WsaLog(m_addr.c_str(), WSAGetLastError());
 		}
 	}
 }
@@ -84,7 +83,7 @@ void User::SetLogin(const std::string& name)
 {
 	//이름설정 후 로그인 상태로 전환.
 	m_login = true;
-	m_name = name;
+	SetName(name);
 }
 
 std::string User::GetAddr()
@@ -113,7 +112,7 @@ void User::PushData(const char * data, int length)
 std::string User::GetName() const
 {
 	//이름을 반환.
-	return m_name;
+	return "[" + m_name + "]";
 }
 
 SOCKET User::GetSocket()
@@ -200,9 +199,13 @@ void UserManager::DisconnectUser(UserPtr & user)
 	{
 		//방에서 퇴장 후 세션 종료처리 이행
 		RoomPtr curRoom = user->GetRoom();
-		curRoom->Leave(user);
+		if (nullptr != curRoom)
+		{
+			curRoom->Leave(user);
+		}
 		user->Kill();
-		g_userManager.EraseUser(user);
-		std::cout << "[USER LOGOUT] - " << user->GetName() << std::endl;
+		std::string userName = user->GetName();
+		EraseUser(user);
+		Logger::Log("[USER LOGOUT] " + userName);
 	}
 }

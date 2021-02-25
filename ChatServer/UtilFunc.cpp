@@ -1,5 +1,5 @@
 #include "UtilFunc.h"
-std::string get_time()
+std::string GetTime()
 {
 	//현재 로컬타임 반환
 	time_t current_time = time(nullptr);
@@ -14,7 +14,7 @@ std::string get_time()
 	int second = current_tm.tm_sec;
 
 	char buf[34];
-	sprintf_s(buf, "[%4d-%02d-%02d %02d:%02d:%02d], ", year, month, day, hour, minute, second);
+	sprintf_s(buf, "[%4d-%02d-%02d %02d:%02d:%02d] ", year, month, day, hour, minute, second);
 	return buf;
 }
 

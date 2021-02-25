@@ -1,5 +1,6 @@
 #include "Room.h"
 #include "User.h"
+#include "Logger.h"
 
 constexpr int LOBBY = 0;
 
@@ -79,7 +80,7 @@ void Room::SendChat(const UserPtr& sender, const std::string& msg)
 	}
 
 	// [유저ID] 메세지
-	std::string completeMsg(std::string("[") + sender->GetName() + std::string("] ") + msg);
+	std::string completeMsg(sender->GetName() + " " + msg);
 	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
 	for (auto& userPtr: m_userTable)
 	{
@@ -99,7 +100,7 @@ std::string Room::GetUserList()
 	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
 	for (const auto& userPtr : m_userTable)
 	{
-		userNameList += "[" + userPtr->GetName() + "]" + "\r\n";
+		userNameList += userPtr->GetName() + "\r\n";
 	}
 	return userNameList;
 }
@@ -137,8 +138,8 @@ RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser)
 	{
 		//방 생성 후 자기 자신 참조 설정
 		m_roomTable[roomIdx]->SetWeakPtr(m_roomTable[roomIdx]);
-		//콘솔 출력
-		std::cout << "Room " << name << " is created" << std::endl;
+		//로그 출력
+		Logger::Log("[CREATE ROOM] [" + name + ", MAX_USER : " + std::to_string(maxUser) + "]");
 	}
 	//생성된 방 포인터 반환.
 	return m_roomTable[roomIdx];
@@ -160,10 +161,12 @@ bool RoomManager::DestroyRoom(int idx)
 	}
 
 	std::string roomName = m_roomTable[idx]->m_name;
+	int maxUser = m_roomTable[idx]->m_maxUser;
 	size_t success = m_roomTable.erase(idx);
 	if (1 == success)
 	{
-		std::cout << "Room " << roomName << " is destroyed" << std::endl; //방 삭제 성공 시 콘솔 출력
+		//방 삭제 성공 시 로그 출력.
+		Logger::Log("[DESTROY ROOM] [" + roomName + ", MAX_USER : " + std::to_string(maxUser) + "]");
 		m_reuseRoomCnt.push(idx);
 		return true;
 	}

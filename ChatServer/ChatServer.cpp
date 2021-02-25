@@ -1,10 +1,12 @@
 #include "ChatServer.h"
-#include "Error.h"
+
 
 #define LOGIN_ON
-
 bool ChatServer::Initialize(short port)
 {
+	Logger::SetLogPath(LOG_NORMAL, LOG_PATH);
+	Logger::SetLogPath(LOG_WSA, WSALOG_PATH);
+
 	if (false == InitWSA(port))
 	{
 		return false;
@@ -19,7 +21,7 @@ bool ChatServer::Initialize(short port)
 void ChatServer::Run()
 {
 	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n10자 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
-	std::cout << "[Start Accept]" << std::endl;
+	Logger::Log("[Start Running]");
 
 	// Recv는 순차적으로 처리된다.
 	// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능하다.
@@ -95,7 +97,7 @@ void ChatServer::Run()
 							UserPtr newUser = AddSession(clientSocket, clientAddr);
 							assert(nullptr != newUser); // 세션 생성 실패 - map인데 실패한다? 문제있음
 
-							std::cout << "[Client Accept] - " << clientSocket << std::endl;
+							Logger::Log("[SESSION IN] " + newUser->GetAddr());
 							newUser->SendChat(welcomeMsg);
 
 #ifndef LOGIN_ON
@@ -112,18 +114,21 @@ void ChatServer::Run()
 
 						if (recvLength <= 0) //종료처리
 						{
+							g_userManager.DisconnectUser(user); //유저테이블 삭제
+
+							//select 테이블에서 삭제
 							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
 							assert(recvSockets.end() != delPos);
 							recvSockets.erase(delPos);
 							dirtyFlag = true;
-							assert(1 == EraseSession(readySoc)); //싱글스레드에서 삭제실패? 문제있음
 
-							g_userManager.DisconnectUser(user);
+							//세션 테이블 삭제
+							Logger::Log("[SESSION Out] " + user->GetAddr());
+							assert(1 == EraseSession(readySoc)); 
 
-							if (recvLength < 0) //에러코드 검출
+							if (recvLength < 0) //에러코드 핸들링
 							{
-								int errCode = WSAGetLastError();
-								error_display(user->GetAddr().c_str(), errCode);
+								Logger::WsaLog(user->GetAddr().c_str(), WSAGetLastError());
 							}
 							continue;
 						}
@@ -151,6 +156,7 @@ void ChatServer::Run()
 
 void ChatServer::Terminate()
 {
+	Logger::Log("[Terminate Server]");
 	//Listen 소켓 종료 후 WSA 종료.
 	closesocket(m_listener);
 	WSACleanup();
@@ -158,11 +164,11 @@ void ChatServer::Terminate()
 
 bool ChatServer::InitWSA(short port)
 {
-	std::cout << "[Initializing ChatServer" << " - " << port << "]" << std::endl;
+	Logger::Log("[Initializing ChatServer - " + std::to_string(port) + "]");
 	WSADATA wsaData;
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 	{
-		std::cout << "Error - WSAStartup()" << std::endl;
+		Logger::Log("[Error] - WSAStartup()");
 		return false;
 	}
 
@@ -175,12 +181,12 @@ bool ChatServer::InitWSA(short port)
 	m_listener = socket(AF_INET, SOCK_STREAM, 0);
 	if (bind(m_listener, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
 	{
-		std::cout << "Error - Bind()" << std::endl;
+		Logger::Log("[Error] - Bind()");
 		return false;
 	}
 	if (listen(m_listener, SOMAXCONN) == SOCKET_ERROR)
 	{
-		std::cout << "Error - Listen()" << std::endl;
+		Logger::Log("[Error] - Listen()");
 		return false;
 	}
 	return true;
@@ -202,6 +208,8 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 	{
 		return;
 	}
+
+	Logger::Log("[USER SEND] " + user->GetAddr() + " " + user->GetName() + " " + data);
 
 	//명령어를 파싱 후
 	std::smatch param;
@@ -326,6 +334,7 @@ void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 		//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
 		if (true == g_userManager.AddUser(user, userName))
 		{
+			Logger::Log("[USER LOGIN] " + user->GetAddr() + " " + user->GetName());
 			ProcessHelp(user);
 			m_lobby->Enter(user);
 			return;
@@ -409,7 +418,7 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	}
 
 	// 본인에게는 전송할 수 없다.
-	if (sender->GetName() != receiverName)
+	if (sender->GetName() == ("[" + receiverName + "]"))
 	{
 		sender->SendChat("본인에게는 전송할 수 없습니다.");
 		return;
@@ -422,7 +431,7 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 		sender->SendChat("유저를 찾을 수 없습니다.");
 		return;
 	}
-	receiver->SendChat("[" + sender->GetName() + "'s Msg] " + msg);
+	receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + msg);
 }
 
 void ChatServer::ProcessGetUserList(const UserPtr &user)
@@ -472,15 +481,14 @@ void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, 
 
 	if (maxUser < MINUSER_NUM)
 	{
-		user->SendChat("방의 최대인원 수는 2 이상이어야 합니다.");
+		user->SendChat("방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상이어야 합니다.");
 		return;
 	}
 	//방 생성후 유저 입장
 	RoomPtr newRoom = g_roomManager.CreateRoom(roomName, maxUser);
 	if (nullptr == newRoom)
 	{
-		user->SendChat("방 생성 실패!!");
-		std::cout << "방 생성 실패" << std::endl;
+		Logger::Log("[Error] - 방 생성 실패");
 		return;
 	}
 	ExchangeRoom(user, newRoom);

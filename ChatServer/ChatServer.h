@@ -16,6 +16,8 @@
 #include "User.h"
 #include "CmdParser.h"
 #include "Config.h"
+#include "Logger.h"
+#include "UtilFunc.h"
 
 class ChatServer
 {
