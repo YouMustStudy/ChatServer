@@ -1,6 +1,6 @@
 #pragma once
-#include <set>
-#include <map>
+#include <vector>
+#include <unordered_map>
 #include <string>
 #include <stack>
 #include <memory>
@@ -19,11 +19,11 @@ class RoomManager;
 class Room
 {
 	friend RoomManager;
-	using UserTable = std::set<UserPtr>;
+	using UserTable = std::vector<UserPtr>;
 	using RoomPtr = std::shared_ptr<Room>;
 
 public:
-	Room(const std::string& name, int idx, int maxUser) : m_maxUser(maxUser), m_name(name), m_roomIdx(idx) {};
+	Room(const std::string& name, int idx, int maxUser);
 
 	/**
 	*@brief 자기 자신의 weak_ptr을 저장하는 함수, 유저가 방에 입장 시 유저의 방 포인터를 본인의 것으로 수정하기 위해 필요하다.
@@ -89,7 +89,7 @@ private:
 class RoomManager
 {
 	using RoomPtr = std::shared_ptr<Room>;
-	using RoomTable = std::map<int, RoomPtr>;
+	using RoomTable = std::unordered_map<int, RoomPtr>;
 
 public:
 	/**

@@ -203,7 +203,7 @@ bool ChatServer::InitWSA(short port)
 bool ChatServer::InitLobby()
 {
 	// 로비 생성, 로비는 사실상 인원제한이 없다.
-	m_lobby = g_roomManager.CreateRoom("Lobby", INT_MAX, false);
+	m_lobby = g_roomManager.CreateRoom("Lobby", MAX_LOBBY_SIZE, false);
 	if (nullptr == m_lobby)
 		return false;
 	m_lobby->SetWeakPtr(m_lobby);

@@ -4,6 +4,14 @@
 
 constexpr int LOBBY = 0;
 
+Room::Room(const std::string & name, int idx, int maxUser)
+	: m_maxUser(maxUser), m_name(name), m_roomIdx(idx)
+{
+	//주어진 maxUser로 벡터 공간 미리 확보.
+	maxUser = min(maxUser, MAX_LOBBY_SIZE);
+	m_userTable.reserve(maxUser);
+}
+
 void Room::SetWeakPtr(RoomPtr &myself)
 {
 	//유저 Enter, Leave 시 해당 유저의 방 포인터를 수정하기 위해 자신의 shared_ptr 저장.
@@ -12,7 +20,7 @@ void Room::SetWeakPtr(RoomPtr &myself)
 	{
 		return;
 	}
-	if (myself.get() == this) 
+	if (myself.get() == this)
 	{
 		m_selfPtr = myself;
 	}
@@ -23,7 +31,7 @@ bool Room::Enter(UserPtr &user)
 	// 방의 입장인원 확인 후 입장 가능하면 이후 처리
 	if (m_maxUser > m_userTable.size())
 	{
-		m_userTable.emplace(user);
+		m_userTable.emplace_back(user);
 		user->SetRoom(m_selfPtr.lock());
 		NotifyAll("Welcome " + user->GetName() + "!!");
 		return true;
@@ -39,8 +47,10 @@ bool Room::Leave(UserPtr &user)
 		return false;
 	}
 
-	if (1 == m_userTable.erase(user)) //삭제가 성공하면
-	{
+	auto userPos = std::find(m_userTable.begin(), m_userTable.end(), user);
+
+	if (m_userTable.end() != userPos) {
+		m_userTable.erase(userPos); //삭제가 성공하면
 		RoomPtr userRoom = user->GetRoom();
 		if (userRoom == m_selfPtr.lock()) //유저의 방포인터를 nullptr로 세팅.
 		{
@@ -65,7 +75,6 @@ void Room::NotifyAll(const std::string& msg)
 {
 	//[ROOM NOTIFY] - 메세지
 	std::string completeMsg(std::string("[ROOM NOTIFY] - ") + msg);
-	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
 	for (auto& userPtr : m_userTable)
 	{
 		userPtr->SendChat(completeMsg);
@@ -80,11 +89,12 @@ void Room::SendChat(const UserPtr& sender, const std::string& msg)
 	}
 	// [유저ID] 메세지
 	std::string completeMsg(sender->GetName() + " " + msg);
-	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
-	for (auto& userPtr: m_userTable)
+	for (auto& userPtr : m_userTable)
 	{
 		if (userPtr != sender) //송신자한테는 전송 안함.
+		{
 			userPtr->SendChat(completeMsg);
+		}
 	}
 }
 
@@ -95,7 +105,7 @@ std::string Room::GetUserList()
 	// [zipzip]
 	// [hungry]
 	// ...
-	std::string userNameList{"==방 참여자 목록==\r\n"};
+	std::string userNameList{ "==방 참여자 목록==\r\n" };
 	//userPtr은 set을 사용해서 'const'로 온다. 순회 시 주의할 것.
 	for (const auto& userPtr : m_userTable)
 	{
@@ -126,9 +136,9 @@ RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser, bool user
 	}
 	else
 	{
-		maxUser = INT_MAX;
+		maxUser = MAX_LOBBY_SIZE;
 	}
-	int roomIdx{0};
+	int roomIdx{ 0 };
 	if (false == m_reuseRoomCnt.empty())	// 스택에서 재사용 가능한 인덱스 있는지 확인
 	{
 		roomIdx = m_reuseRoomCnt.top();
