@@ -1,7 +1,7 @@
 #pragma once
 #include <ws2tcpip.h>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <memory>
 
 class Room;
@@ -104,7 +104,7 @@ private:
 class UserManager
 {
 	using UserPtr = std::shared_ptr<User>;
-	using UserTable = std::map<std::string, UserPtr>;
+	using UserTable = std::unordered_map<std::string, UserPtr>;
 
 public:
 	/**

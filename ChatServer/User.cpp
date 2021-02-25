@@ -5,7 +5,7 @@
 User::User(SOCKET socket, SOCKADDR_IN addr) : m_socket(socket), m_name(), m_data(), m_room(nullptr), m_login(false), m_isAlive(true), m_addr()
 {
 	char addrArray[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &addr, addrArray, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &addr.sin_addr, addrArray, INET_ADDRSTRLEN);
 	m_addr = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(addr.sin_port)) + "]";
 }
 
