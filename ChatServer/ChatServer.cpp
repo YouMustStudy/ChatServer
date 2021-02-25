@@ -21,7 +21,7 @@ bool ChatServer::Initialize(short port)
 void ChatServer::Run()
 {
 	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
-	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	Logger::Log("[Start Running]");
 
 	// Recv는 순차적으로 처리된다.
@@ -134,11 +134,11 @@ void ChatServer::Run()
 							continue;
 						}
 
-
+						int prevPos = max(0, static_cast<int>(user->m_data.size()) - 1);
 						user->PushData(buffer, recvLength);
 						while (true)
 						{
-							size_t cmdPos = user->m_data.find("\r\n"); // 개행문자 발견 시 패킷 처리
+							size_t cmdPos = user->m_data.find("\r\n", prevPos); // 개행문자 발견 시 패킷 처리
 							if (std::string::npos != cmdPos)
 							{
 								if (0 != cmdPos) // 엔터만 연타로 치는 경우는 처리하지 않는다.
@@ -213,7 +213,7 @@ bool ChatServer::InitLobby()
 void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
 	static std::string alreadyLoginMsg{ "이미 로그인되어있습니다." };
-	static std::string plzLoginMsg{ "공백 없이" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	static std::string plzLoginMsg{ "공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 
 	if (nullptr == user)
 	{
