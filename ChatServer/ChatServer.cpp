@@ -463,13 +463,16 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 	//CmdParser는 무조건 msg가 한 글자 이상 들어옴을 보장한다.
 	if (' ' == msg.back()) 
 	{
+		//문자열 맨 뒤 공백문자를 제거해서
 		std::string noBackWhiteSpaceMsg = msg;
 		m_cmdParser.EraseBackWhiteSpace(noBackWhiteSpaceMsg);
+		//공백문자열이면 에러처리
 		if (true == noBackWhiteSpaceMsg.empty())
 		{
 			sender->SendChat(noMsg);
 			return;
 		}
+		//아니면 정상전송
 		receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + noBackWhiteSpaceMsg);
 		return;
 	}
