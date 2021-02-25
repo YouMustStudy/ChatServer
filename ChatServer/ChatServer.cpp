@@ -20,6 +20,7 @@ bool ChatServer::Initialize(short port)
 
 void ChatServer::Run()
 {
+	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
 	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n10자 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	Logger::Log("[Start Running]");
 
@@ -133,6 +134,7 @@ void ChatServer::Run()
 							continue;
 						}
 
+
 						user->PushData(buffer, recvLength);
 						while (true)
 						{
@@ -146,6 +148,12 @@ void ChatServer::Run()
 								user->m_data = user->m_data.substr(cmdPos + 2);
 							}
 							else break;
+						}
+						//과다하게 메모리를 차지하는 것을 막기 위해 저장할 수 있는 최대 데이터 크기 제한.
+						if (user->m_data.size() > USERBUF_SIZE)
+						{
+							user->m_data.clear();
+							user->SendChat(bufferoverMsg);
 						}
 					}
 				}
