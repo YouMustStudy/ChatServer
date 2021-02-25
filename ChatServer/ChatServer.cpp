@@ -21,7 +21,7 @@ bool ChatServer::Initialize(short port)
 void ChatServer::Run()
 {
 	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
-	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	Logger::Log("[Start Running]");
 
 	// Recv는 순차적으로 처리된다.
@@ -213,7 +213,7 @@ bool ChatServer::InitLobby()
 void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
 	static std::string alreadyLoginMsg{ "이미 로그인되어있습니다." };
-	static std::string plzLoginMsg{ "로그인을 먼저 해주세요." };
+	static std::string plzLoginMsg{ "공백 없이" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 
 	if (nullptr == user)
 	{
