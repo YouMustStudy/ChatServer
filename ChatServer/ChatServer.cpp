@@ -21,7 +21,7 @@ bool ChatServer::Initialize(short port)
 void ChatServer::Run()
 {
 	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
-	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n10자 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n" + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	Logger::Log("[Start Running]");
 
 	// Recv는 순차적으로 처리된다.
@@ -337,11 +337,18 @@ size_t ChatServer::EraseSession(SOCKET socket)
 void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 {
 	static std::string errMsg{ "[로그인 실패] ID가 중복됩니다." };
+	static std::string longIdMsg{ "[로그인 실패] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
+
 	if (nullptr == user)
 	{
 		return;
 	}
 
+	if (userName.size() > MAX_IDLENGTH)
+	{
+		user->SendChat(longIdMsg);
+		return;
+	}
 	if (false == user->GetIsLogin())
 	{
 		//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
