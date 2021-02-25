@@ -3,12 +3,11 @@
 #include "Logger.h"
 
 constexpr int LOBBY = 0;
-
 Room::Room(const std::string & name, int idx, int maxUser)
 	: m_maxUser(maxUser), m_name(name), m_roomIdx(idx)
 {
 	//주어진 maxUser로 벡터 공간 미리 확보.
-	maxUser = min(maxUser, MAX_LOBBY_SIZE);
+	maxUser = min(maxUser, MAX_RESERVE_USERSIZE);
 	m_userTable.reserve(maxUser);
 }
 

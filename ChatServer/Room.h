@@ -10,7 +10,6 @@
 
 class User;
 using UserPtr = std::shared_ptr<User>;
-
 class RoomManager;
 /**
 *@brief 
