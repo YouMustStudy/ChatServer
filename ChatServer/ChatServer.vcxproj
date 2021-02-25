@@ -144,6 +144,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="User.cpp" />
+    <ClCompile Include="UtilFunc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ChatServer.h" />
@@ -152,6 +153,7 @@
     <ClInclude Include="Error.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="User.h" />
+    <ClInclude Include="UtilFunc.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -42,6 +42,9 @@
     <ClCompile Include="User.cpp">
       <Filter>ChatServer\Common</Filter>
     </ClCompile>
+    <ClCompile Include="UtilFunc.cpp">
+      <Filter>ChatServer\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Error.h">
@@ -61,6 +64,9 @@
     </ClInclude>
     <ClInclude Include="Config.h">
       <Filter>ChatServer</Filter>
+    </ClInclude>
+    <ClInclude Include="UtilFunc.h">
+      <Filter>ChatServer\Util</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

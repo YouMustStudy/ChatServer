@@ -27,7 +27,7 @@ public:
 	*@param[in] 서버의 포트 번호.
 	*@return 성공 시 true, 실패 시 false.
 	*/
-	bool Initialize(short port);
+	bool Initialize(short port = SERVER_PORT);
 
 	/**
 	*@brief Accept를 시작한다.

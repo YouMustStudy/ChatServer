@@ -1,15 +1,9 @@
 #pragma once
-#include <WinSock2.h>
+#include <ws2tcpip.h>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <ctime>
+#include "UtilFunc.h"
 
-/**
-*@brief 현재 시간을 반환한다.
-*@return [0000-00-00 HH:MM:SS] 형식의 문자열을 반환한다.
-*/
-std::string get_time();
 
 /**
 *@brief WSA관련 오류를 서버 콘솔에 출력 및 로그파일로 저장한다.
