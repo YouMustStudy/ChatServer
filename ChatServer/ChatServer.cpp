@@ -5,8 +5,14 @@
 
 bool ChatServer::Initialize(short port)
 {
-	InitWSA(port);
-	InitLobby();
+	if (false == InitWSA(port))
+	{
+		return false;
+	}
+	if (false == InitLobby())
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -18,7 +24,7 @@ void ChatServer::Run()
 	// Recv는 순차적으로 처리된다.
 	// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능하다.
 	// => Recv용 소켓은 지역변수로 관리 가능.
-	std::deque<SOCKET> recvSockets;
+	std::deque<SOCKET> recvSockets; // 순회가 잦으면서도 추가삭제가 반복적으로 일어나 deque 선택.
 	recvSockets.emplace_back(m_listener);
 	std::vector<fd_set> masterFdSets;
 	std::vector<SOCKET> maxFds;
@@ -82,7 +88,7 @@ void ChatServer::Run()
 						SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
 						if (INVALID_SOCKET != clientSocket)
 						{
-							// 소켓 리스트에 등록
+							// recv용 소켓컨테이너에 등록
 							recvSockets.emplace_back(clientSocket);
 							dirtyFlag = true;
 
@@ -138,15 +144,16 @@ void ChatServer::Run()
 							}
 							else break;
 						}
+					}
 				}
 			}
 		}
 	}
 }
-}
 
 void ChatServer::Terminate()
 {
+	//Listen 소켓 종료 후 WSA 종료.
 	closesocket(m_listener);
 	WSACleanup();
 }
@@ -193,9 +200,16 @@ bool ChatServer::InitLobby()
 
 void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
+	//명령어를 파싱 후
 	std::smatch param;
 	int cmd = m_cmdParser.Parse(data, param);
 
+	//로그인, 명령어 여부에 따라 이후 처리 분기
 	if (true == user->GetIsLogin())
 	{
 		switch (cmd)
@@ -247,6 +261,7 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 	}
 	else
 	{
+		//로그인이 안된 경우 로그인만 처리.
 		switch (cmd)
 		{
 		case CMD_LOGIN:
@@ -262,10 +277,13 @@ void ChatServer::ProcessPacket(UserPtr& user, std::string data)
 
 void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 {
-	if (nullptr == enterRoom)
+	if (nullptr == user ||
+		nullptr == enterRoom)
 	{
 		return;
 	}
+
+	//새로운 방에 입장 후 이전 방을 나가는 방식으로 작동한다.
 	RoomPtr oldRoomPtr = user->GetRoom();
 	if (true == enterRoom->Enter(user))
 	{
@@ -276,12 +294,14 @@ void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
 	}
 	else
 	{
+		//새로운 방에 입장 실패 시 오류 메세지 전송
 		user->SendChat("인원수 초과로 입장할 수 없습니다.");
 	}
 }
 
 UserPtr ChatServer::AddSession(SOCKET socket, SOCKADDR_IN addr)
 {
+	//Accept 발생 시 새로운 세션을 생성한다.
 	m_sessionTable.emplace(socket, new User(socket, addr));
 	if (nullptr != m_sessionTable[socket])
 	{
@@ -298,11 +318,16 @@ size_t ChatServer::EraseSession(SOCKET socket)
 
 void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
 	if (false == user->GetIsLogin())
 	{
+		//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
 		if (true == g_userManager.AddUser(user, userName))
 		{
-			user->SetLogin(userName);
 			ProcessHelp(user);
 			m_lobby->Enter(user);
 			return;
@@ -314,6 +339,11 @@ void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
 
 void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 {
+	if (nullptr == sender)
+	{
+		return;
+	}
+
 	const RoomPtr userRoom = sender->GetRoom();
 	if (nullptr != userRoom)
 	{
@@ -323,9 +353,15 @@ void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 
 void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
 	RoomPtr oldRoom = user->GetRoom();
 	if (nullptr != oldRoom)
 	{
+		//같은 방으로의 재입장은 차단.
 		if (true == oldRoom->IsSameIdx(roomIdx))
 		{
 			user->SendChat("현재 있는 방입니다.");
@@ -333,9 +369,11 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 		}
 	}
 
+
 	RoomPtr newRoom = g_roomManager.GetRoom(roomIdx);
 	if (nullptr == newRoom)
 	{
+		//인덱스에 해당하는 방이 없다면 오류 메세지 전송.
 		user->SendChat("없는 방번호입니다.");
 		return;
 	}
@@ -344,12 +382,19 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 
 void ChatServer::ProcessQuit(UserPtr &user)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
 	RoomPtr userRoom = user->GetRoom();
 	if (nullptr == userRoom)
 	{
 		return;
 	}
 
+	//로비를 제외한 곳에서만 퇴장 가능.
+	//기존방 -> 로비로의 이동을 처리.
 	if (m_lobby == userRoom)
 	{
 		user->SendChat("로비에서는 나가실 수 없습니다.");
@@ -360,13 +405,20 @@ void ChatServer::ProcessQuit(UserPtr &user)
 
 void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
 {
+	if (nullptr == sender)
+	{
+		return;
+	}
+
+	// 본인에게는 전송할 수 없다.
 	if (sender->GetName() != receiverName)
 	{
 		sender->SendChat("본인에게는 전송할 수 없습니다.");
 		return;
 	}
 
-	UserPtr receiver = g_userManager.GetUser(receiverName);
+	// 해당 이름을 가진 유저를 탐색
+	const UserPtr receiver = g_userManager.GetUser(receiverName);
 	if (nullptr == receiver)
 	{
 		sender->SendChat("유저를 찾을 수 없습니다.");
@@ -377,6 +429,12 @@ void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverNa
 
 void ChatServer::ProcessGetUserList(const UserPtr &user)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
+	//유저가 있는 방의 유저 목록 획득 후 전송
 	const RoomPtr userRoom = user->GetRoom();
 	if (nullptr != userRoom)
 	{
@@ -387,22 +445,39 @@ void ChatServer::ProcessGetUserList(const UserPtr &user)
 
 void ChatServer::ProcessGetRoomList(const UserPtr & user)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
+	//roomManager에 생성된 방 목록 획득 후 전송.
 	std::string roomList = g_roomManager.GetRoomList();
 	user->SendChat(roomList);
 }
 
 void ChatServer::ProcessGetAllUserList(const UserPtr & user)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+	//접속한 모든 유저의 목록 획득 후 전송.
 	user->SendChat(g_userManager.GetUserList());
 }
 
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
-	if (maxUser < 2)
+	if (nullptr == user)
+	{
+		return;
+	}
+
+	if (maxUser < MINUSER_NUM)
 	{
 		user->SendChat("방의 최대인원 수는 2 이상이어야 합니다.");
 		return;
 	}
+	//방 생성후 유저 입장
 	RoomPtr newRoom = g_roomManager.CreateRoom(roomName, maxUser);
 	if (nullptr == newRoom)
 	{
@@ -411,12 +486,15 @@ void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, 
 		return;
 	}
 	ExchangeRoom(user, newRoom);
+
 }
 
 void ChatServer::ProcessHelp(const UserPtr & user)
 {
+	//도움말 메세지 전송
 	static std::string helpCmd{
 "\r\n== 명령어 목록 == \r\n\
+[도움] /help\r\n\
 [입장] /join [방번호]\r\n\
 [퇴장] /quit\r\n\
 [쪽지] /msg [상대방] [메세지]\r\n\
@@ -429,6 +507,12 @@ void ChatServer::ProcessHelp(const UserPtr & user)
 
 void ChatServer::ProcessError(const UserPtr & user)
 {
+	if (nullptr == user)
+	{
+		return;
+	}
+
+	//명령어 목록에 없는 명령어가 왔을 시 처리.
 	static std::string wrongCmd{ "잘못된 명령어 형식입니다." };
 	user->SendChat(wrongCmd);
 }

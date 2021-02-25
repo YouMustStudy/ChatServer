@@ -15,8 +15,8 @@
 #include "Room.h"
 #include "User.h"
 #include "CmdParser.h"
+#include "Config.h"
 
-static constexpr int BUF_SIZE = 1024;
 class ChatServer
 {
 	using sessionTable = std::map<SOCKET, UserPtr>;

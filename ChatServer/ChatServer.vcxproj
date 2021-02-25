@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="ChatServer.h" />
     <ClInclude Include="CmdParser.h" />
+    <ClInclude Include="Config.h" />
     <ClInclude Include="Error.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="User.h" />

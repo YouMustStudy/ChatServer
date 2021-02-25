@@ -16,6 +16,12 @@
     <Filter Include="ChatServer">
       <UniqueIdentifier>{d9d19a42-6416-4d0a-b91b-61247c975e7e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ChatServer\Util">
+      <UniqueIdentifier>{43480dde-f919-43e6-8e92-c5fc0554f9fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ChatServer\Common">
+      <UniqueIdentifier>{65cfa741-3399-4e5a-9bdd-d5b889bb3b6c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -24,34 +30,37 @@
     <ClCompile Include="ChatServer.cpp">
       <Filter>ChatServer</Filter>
     </ClCompile>
-    <ClCompile Include="Room.cpp">
-      <Filter>ChatServer</Filter>
-    </ClCompile>
-    <ClCompile Include="User.cpp">
-      <Filter>ChatServer</Filter>
+    <ClCompile Include="Error.cpp">
+      <Filter>ChatServer\Util</Filter>
     </ClCompile>
     <ClCompile Include="CmdParser.cpp">
-      <Filter>ChatServer</Filter>
+      <Filter>ChatServer\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Error.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Room.cpp">
+      <Filter>ChatServer\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="User.cpp">
+      <Filter>ChatServer\Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Error.h">
+      <Filter>ChatServer\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="User.h">
+      <Filter>ChatServer\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Room.h">
+      <Filter>ChatServer\Common</Filter>
+    </ClInclude>
     <ClInclude Include="ChatServer.h">
       <Filter>ChatServer</Filter>
     </ClInclude>
-    <ClInclude Include="Room.h">
-      <Filter>ChatServer</Filter>
-    </ClInclude>
-    <ClInclude Include="User.h">
-      <Filter>ChatServer</Filter>
-    </ClInclude>
     <ClInclude Include="CmdParser.h">
-      <Filter>ChatServer</Filter>
+      <Filter>ChatServer\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Error.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Config.h">
+      <Filter>ChatServer</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

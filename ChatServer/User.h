@@ -26,7 +26,7 @@ public:
 	*@brief 유저가 있는 방의 포인터를 반환한다.
 	*@return 유저가 있는 방의 포인터, 없으면 nullptr.
 	*/
-	RoomPtr GetRoom();
+	RoomPtr GetRoom() const;
 
 	/**
 	*@brief 유저가 있는 방의 포인터를 설정한다.
@@ -38,7 +38,7 @@ public:
 	*@brief 유저 이름을 반환한다.
 	*@return 유저 이름.
 	*/
-	std::string GetName();
+	std::string GetName() const;
 
 	/**
 	*@brief 유저의 이름을 설정한다.
@@ -154,7 +154,7 @@ public:
 	*/
 	void DisconnectUser(UserPtr& user);
 private:
-	UserManager();
+	UserManager() {};
 	UserTable m_userTable;	///< 유저 저장용 컨테이너
 };
 //@brief UserManager 호출 매크로.

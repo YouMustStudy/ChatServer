@@ -6,6 +6,8 @@
 #include <memory>
 #include <iostream>
 
+#include "Config.h"
+
 class User;
 using UserPtr = std::shared_ptr<User>;
 
@@ -57,7 +59,7 @@ public:
 	*@param[in] sender 전송자의 포인터.
 	*@param[in] msg 전송할 메세지.
 	*/
-	void SendChat(const UserPtr sender, const std::string& msg);
+	void SendChat(const UserPtr& sender, const std::string& msg);
 
 	/**
 	*@brief 방 내 모든 유저들의 이름을 반환한다.
