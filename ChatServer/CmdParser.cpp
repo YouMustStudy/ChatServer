@@ -40,8 +40,8 @@ void CmdParser::Initialize()
 	m_regexs[CMD_ROOMLIST] = std::regex(R"(^\/roomlist *$)", std::regex_constants::syntax_option_type::icase);
 	m_regexs[CMD_USERLIST] = std::regex(R"(^\/userlist *$)", std::regex_constants::syntax_option_type::icase);
 	m_regexs[CMD_ALLUSERLIST] = std::regex(R"(^\/alluserlist *$)", std::regex_constants::syntax_option_type::icase);
-	m_regexs[CMD_JOIN] = std::regex(R"(^\/join +([0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_JOIN] = std::regex(R"(^\/join +(-*[0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
 	m_regexs[CMD_LOGIN] = std::regex(R"(^\/login +(\S+) *$)", std::regex_constants::syntax_option_type::icase);
 	m_regexs[CMD_MSG] = std::regex(R"(^\/msg +(\S+) +(.+)$)", std::regex_constants::syntax_option_type::icase);
-	m_regexs[CMD_CREATEROOM] = std::regex(R"(^\/create +(\S+) +([0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
+	m_regexs[CMD_CREATEROOM] = std::regex(R"(^\/create +(\S+) +(-*[0-9]+) *$)", std::regex_constants::syntax_option_type::icase);
 }

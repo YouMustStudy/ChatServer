@@ -380,8 +380,8 @@ void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
 
 void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 {
-	static std::string alreadyExistMsg{ "현재 있는 방입니다." };
-	static std::string noExistMsg{ "없는 방번호입니다." };
+	static std::string alreadyExistMsg{ " 현재 있는 방입니다." };
+	static std::string noExistMsg{ " 없는 방번호입니다." };
 
 	if (nullptr == user)
 	{
@@ -399,7 +399,6 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 		}
 	}
 
-
 	RoomPtr newRoom = g_roomManager.GetRoom(roomIdx);
 	if (nullptr == newRoom)
 	{
@@ -412,7 +411,7 @@ void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
 
 void ChatServer::ProcessQuit(UserPtr &user)
 {
-	static std::string errMsg{ "로비에서는 나가실 수 없습니다." };
+	static std::string errMsg{ " 로비에서는 나가실 수 없습니다." };
 	if (nullptr == user)
 	{
 		return;
@@ -436,9 +435,9 @@ void ChatServer::ProcessQuit(UserPtr &user)
 
 void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
 {
-	static std::string cantSendSamePeopleMsg{ "본인에게는 전송할 수 없습니다." };
-	static std::string cantFindPeopleMsg{ "유저를 찾을 수 없습니다." };
-	static std::string noMsg{ "공백 메세지는 전송할 수 없습니다." };
+	static std::string cantSendSamePeopleMsg{ " 본인에게는 전송할 수 없습니다." };
+	static std::string cantFindPeopleMsg{ " 유저를 찾을 수 없습니다." };
+	static std::string noMsg{ " 공백 메세지는 전송할 수 없습니다." };
 	
 	if (nullptr == sender)
 	{
@@ -519,7 +518,8 @@ void ChatServer::ProcessGetAllUserList(const UserPtr & user)
 
 void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
 {
-	static std::string errMsg{ "방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
+	static std::string errMsg{ " 방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
+	static std::string failMakeRoomMsg{ "방 생성에 실패하였습니다." };
 	if (nullptr == user)
 	{
 		return;
@@ -536,7 +536,7 @@ void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, 
 	if (nullptr == newRoom)
 	{
 		Logger::Log("[Error] - 방 생성 실패");
-		user->SendChat("방 생성에 실패하였습니다.");
+		user->SendChat(failMakeRoomMsg);
 		return;
 	}
 	ExchangeRoom(user, newRoom);
@@ -566,6 +566,6 @@ void ChatServer::ProcessError(const UserPtr & user)
 		return;
 	}
 	//명령어 목록에 없는 명령어가 왔을 시 처리.
-	static std::string wrongCmd{ "잘못된 명령어 형식입니다." };
+	static std::string wrongCmd{ " 잘못된 명령어 형식입니다." };
 	user->SendChat(wrongCmd);
 }
