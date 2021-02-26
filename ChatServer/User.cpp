@@ -166,12 +166,13 @@ size_t UserManager::EraseUser(const UserPtr & user)
 	//이름에 해당하는 유저 삭제 후 카운트 반환.
 	if (1 == m_userTable.count(user->GetName()))
 	{
-		//리스트 맨 마지막 인자를 해당 위치로 이동 후 pop_back 수행.
+		//테이블 삭제.
 		size_t userPos = m_userTable[user->GetName()];
+		m_userTable.erase(user->GetName());
+
+		//리스트 맨 마지막 인자를 해당 위치로 이동 후 pop_back 수행.
 		m_userList[userPos] = m_userList.back();
 		m_userList.pop_back();
-		//이후 테이블 삭제.
-		m_userTable.erase(user->GetName());
 		return 1;
 	}
 	return 0;
