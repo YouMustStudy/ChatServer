@@ -9,7 +9,7 @@ User::User(SOCKET socket, SOCKADDR_IN addr) : m_socket(socket), m_name(), m_data
 	m_addr = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(addr.sin_port)) + "]";
 }
 
-void User::SendChat(const std::string &msg)
+void User::SendChat(const std::string &msg, bool newLine)
 {
 	//만료된 소켓에는 전송하지 않는다.
 	if (INVALID_SOCKET == m_socket)
@@ -133,7 +133,7 @@ UserPtr UserManager::GetUser(const std::string &userName)
 	//이름이 테이블에 있는 지 검색 후 반환. - 그냥 반환하면 nullptr이 테이블에 추가될 수 있다.
 	if (0 < m_userTable.count(userName))
 	{
-		return m_userTable[userName];
+		return m_userList[m_userTable[userName]];
 	}
 	return nullptr;
 }
@@ -149,7 +149,8 @@ bool UserManager::AddUser(UserPtr& user, const std::string& userName)
 	if (0 == m_userTable.count(userName))
 	{
 		user->SetLogin(userName);
-		m_userTable.emplace(userName, user);
+		m_userTable.emplace(userName, m_userList.size()); //현재 UserList의 최대값을 유저 인덱스로 가진다.
+		m_userList.emplace_back(user); //이후 실제 UserList에 삽입.
 		return true;
 	}
 	//중복 이름이 있으면 false 반환.
@@ -158,20 +159,31 @@ bool UserManager::AddUser(UserPtr& user, const std::string& userName)
 
 size_t UserManager::EraseUser(const UserPtr & user)
 {
-	if (nullptr == user) 
+	if (nullptr == user)
 	{
 		return 0;
 	}
 	//이름에 해당하는 유저 삭제 후 카운트 반환.
-	return m_userTable.erase(user->GetName());
+	if (1 == m_userTable.count(user->GetName()))
+	{
+		//테이블 삭제.
+		size_t userPos = m_userTable[user->GetName()];
+		m_userTable.erase(user->GetName());
+
+		//리스트 맨 마지막 인자를 해당 위치로 이동 후 pop_back 수행.
+		m_userList[userPos] = m_userList.back();
+		m_userList.pop_back();
+		return 1;
+	}
+	return 0;
 }
 
 std::string UserManager::GetUserList()
 {
 	std::string userNameList{ "==서버 내 유저 목록==\r\n" };
-	for (const auto& user : m_userTable)
+	for (const auto& user : m_userList)
 	{
-		userNameList += "[" + user.first + "]" + "\r\n"; //테이블을 순회하면서 이름 획득
+		userNameList += "[" + user->GetName() + "]" + "\r\n"; //테이블을 순회하면서 이름 획득
 	}
 	return userNameList;
 }
