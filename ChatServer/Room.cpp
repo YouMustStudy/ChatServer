@@ -147,16 +147,18 @@ RoomPtr RoomManager::CreateRoom(const std::string & name, int maxUser, bool user
 	{
 		roomIdx = m_genRoomCnt++;			// 없으면 새로 발급
 	}
-	m_roomTable.emplace(std::make_pair(roomIdx, new Room(name, roomIdx, maxUser)));
-	if (nullptr != m_roomTable[roomIdx])
+
+	m_roomList.emplace_back(new Room(name, roomIdx, maxUser));
+	if (nullptr != m_roomList[roomIdx])
 	{
+		m_roomTable.emplace(roomIdx, m_roomList.size() - 1);
 		//방 생성 후 자기 자신 참조 설정
-		m_roomTable[roomIdx]->SetWeakPtr(m_roomTable[roomIdx]);
+		DirectRoom(roomIdx)->SetWeakPtr(DirectRoom(roomIdx));
 		//로그 출력
 		Logger::Log("[CREATE ROOM] [" + name + ", MAX_USER : " + std::to_string(maxUser) + "]");
 	}
 	//생성된 방 포인터 반환.
-	return m_roomTable[roomIdx];
+	return DirectRoom(roomIdx);
 }
 
 bool RoomManager::DestroyRoom(int idx)
@@ -169,14 +171,20 @@ bool RoomManager::DestroyRoom(int idx)
 	{
 		return false;
 	}
-	if (m_roomTable[idx]->m_userTable.size() > 0) // 유저가 남아있으면 지우면 안됨
+	if (DirectRoom(idx)->m_userTable.size() > 0) // 유저가 남아있으면 지우면 안됨
 	{
 		return false;
 	}
 
-	std::string roomName = m_roomTable[idx]->m_name;
-	int maxUser = m_roomTable[idx]->m_maxUser;
+	std::string roomName = DirectRoom(idx)->m_name;
+	int maxUser = DirectRoom(idx)->m_maxUser;
+
+	//테이블 탐색 후 테이블 삭제, 이후 리스트에서 삭제.
+	size_t roomPos = m_roomTable[idx];
 	size_t success = m_roomTable.erase(idx);
+	m_roomList[roomPos] = m_roomList.back();
+	m_roomList.pop_back();
+	//TODO :: 의미있는 예외처리인가?
 	if (1 == success)
 	{
 		//방 삭제 성공 시 로그 출력.
@@ -194,17 +202,17 @@ RoomPtr RoomManager::GetRoom(int idx)
 	{
 		return nullptr;
 	}
-	return m_roomTable[idx];
+	return DirectRoom(idx);
 }
 
 std::string RoomManager::GetRoomList()
 {
 	std::string roomNameList{ "==방 목록==\r\n" };
-	//roomPair은 map을 사용해서 first는 const로 고정된다. 순회 시 주의할 것.
-	for (const auto& roomPair : m_roomTable)
+	//m_roomList는 RoomPtr의 vector, 그대로 순회하면 된다.
+	for (const auto& room : m_roomList)
 	{
 		//순회하면서 방 이름과 번호 추가.
-		roomNameList += "[" + std::to_string(roomPair.first) + "] " + roomPair.second->m_name + " (" + std::to_string(roomPair.second->m_userTable.size()) + "/" + std::to_string(roomPair.second->m_maxUser) + ")\r\n";
+		roomNameList += "[" + std::to_string(room->m_roomIdx) + "] " + room->m_name + " (" + std::to_string(room->m_userTable.size()) + "/" + std::to_string(room->m_maxUser) + ")\r\n";
 	}
 	return roomNameList;
 }

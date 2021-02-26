@@ -88,7 +88,8 @@ private:
 class RoomManager
 {
 	using RoomPtr = std::shared_ptr<Room>;
-	using RoomTable = std::unordered_map<int, RoomPtr>;
+	using RoomList = std::vector<RoomPtr>;
+	using RoomTable = std::unordered_map<int, size_t>;
 
 public:
 	/**
@@ -127,7 +128,8 @@ public:
 	static RoomManager& Instance();
 
 private:
-	RoomTable m_roomTable;				///< 방을 관리하는 테이블
+	RoomTable m_roomTable;				///< 룸리스트와 방번호 간 매핑 테이블.
+	RoomList m_roomList;				///< 실제 데이터가 저장된 룸 리스트.
 	int m_genRoomCnt{0};				///< 현재까지 생성된 방의 수
 	std::stack<int> m_reuseRoomCnt;		///< 방 인덱스 재사용 저장 컨테이너
 
@@ -136,3 +138,5 @@ private:
 
 //@brief RoomManager 호출 매크로.
 #define g_roomManager (RoomManager::Instance())
+//@brief 룸 테이블 idx로 바로 포인터를 얻는 단축 매크로.
+#define DirectRoom(idx) (m_roomList[(m_roomTable[(idx)])])

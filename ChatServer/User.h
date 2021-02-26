@@ -19,7 +19,7 @@ public:
 	*@brief 유저에게 메세지를 전송한다.
 	*@param[in] msg 전송할 메세지.
 	*/
-	void SendChat(const std::string& msg);
+	void SendChat(const std::string& msg, bool newLine = true);
 
 	/**
 	*@brief 유저가 있는 방의 포인터를 반환한다.
@@ -104,7 +104,8 @@ private:
 class UserManager
 {
 	using UserPtr = std::shared_ptr<User>;
-	using UserTable = std::unordered_map<std::string, UserPtr>;
+	using UserTable = std::unordered_map<std::string, size_t>;
+	using UserList = std::vector<UserPtr>;
 
 public:
 	/**
@@ -154,7 +155,8 @@ public:
 	void DisconnectUser(UserPtr& user);
 private:
 	UserManager() {};
-	UserTable m_userTable;	///< 유저 저장용 컨테이너
+	UserTable m_userTable;	///< 이름과 인덱스를 매핑하는 테이블.
+	UserList m_userList;	///< 유저 실저장용 컨테이너.
 };
 //@brief UserManager 호출 매크로.
 #define g_userManager (UserManager::Instance())
