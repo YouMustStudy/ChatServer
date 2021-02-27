@@ -1,7 +1,14 @@
 #include "ChatServer.h"
-
+thread_local int thread_id;
+std::atomic_int abc;
 
 #define LOGIN_ON
+ChatServer& ChatServer::Instance()
+{
+	//싱글턴 객체 생성 및 호출.
+	static ChatServer* chatServer = new ChatServer();
+	return *chatServer;
+}
 bool ChatServer::Initialize(short port)
 {
 	Logger::SetLogPath(LOG_NORMAL, LOG_PATH);
@@ -15,14 +22,19 @@ bool ChatServer::Initialize(short port)
 	{
 		return false;
 	}
+
+	InitMultiThread();
+	
 	return true;
 }
 
 void ChatServer::Run()
 {
 	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
-	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	
 	Logger::Log("[Start Running]");
+	
+	SessionTable sessionTable;	///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
 
 	// Recv는 순차적으로 처리된다.
 	// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능하다.
@@ -40,9 +52,10 @@ void ChatServer::Run()
 	//이를 해결하기 위해 소켓을 순차적으로 fd_set에 추가, select를 반복적으로 호출한다.
 	//매번 fd_set을 갱신하는 것은 오버헤드가 있으므로
 	//갱신이 필요한 상황(Accept, Disconnect)에서만 dirtyFlag를 세팅, 다음 순회에서 갱신한다.
-	timeval timeout{ 0, 0 };
+	//timeval timeout{ 0, 0 };
 	fd_set copyFdSet;
 	char buffer[BUF_SIZE + 1];
+	char addrArray[INET_ADDRSTRLEN];
 	while (true)
 	{
 		int loopCnt = (static_cast<int>(recvSockets.size()) - 1) / FD_SETSIZE + 1;
@@ -72,7 +85,7 @@ void ChatServer::Run()
 		for (int fdSetNum = 0; fdSetNum < loopCnt; ++fdSetNum)
 		{
 			copyFdSet = masterFdSets[fdSetNum];
-			int numFd = select(static_cast<int>(maxFds[fdSetNum]) + 1, &copyFdSet, 0, 0, &timeout);
+			int numFd = select(static_cast<int>(maxFds[fdSetNum]) + 1, &copyFdSet, 0, 0, 0);
 			assert(numFd >= 0);
 			if (numFd == 0)
 			{
@@ -95,28 +108,34 @@ void ChatServer::Run()
 							recvSockets.emplace_back(clientSocket);
 							dirtyFlag = true;
 
-							UserPtr newUser = AddSession(clientSocket, clientAddr);
-							assert(nullptr != newUser); // 세션 생성 실패 - map인데 실패한다? 문제있음
+							// 세션에 유저 추가
+							sessionTable[clientSocket][SE_BUFFER].clear();
+							sessionTable[clientSocket][SE_ADDR].clear();
+							Logger::Log("###[SESSION IN] 세션인 추가");
 
-							Logger::Log("[SESSION IN] " + newUser->GetAddr());
-							newUser->SendChat(welcomeMsg);
-
-#ifndef LOGIN_ON
-							ProcessLogin(newUser, newUser->GetName());
-#endif // LOGIN_ON
+							// 유저 접속 이벤트 포스팅
+							inet_ntop(AF_INET, &clientAddr.sin_addr, addrArray, INET_ADDRSTRLEN);
+							sessionTable[clientSocket][SE_ADDR] = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(clientAddr.sin_port)) + "]";
+							std::string* addrText = new std::string(sessionTable[clientSocket][SE_ADDR]);
+							PushThreadJob(new MainJob( CMD_CONNECT, clientSocket, addrText ));
 						}
 					}
 					// Recv
 					else
 					{
 						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
-						UserPtr user = m_sessionTable[readySoc];
-						assert(nullptr != user);
-
 						if (recvLength <= 0) //종료처리
 						{
-							g_userManager.DisconnectUser(user); //유저테이블 삭제
-
+							//유저테이블 삭제
+							if (0 == recvLength) 
+							{
+								PushThreadJob(new MainJob( CMD_DECREASE, readySoc, nullptr ));
+							}
+							else if (0 > recvLength) //에러코드 핸들링
+							{
+								PushThreadJob(new MainJob( CMD_DECREASE, readySoc, nullptr ));
+							}
+							
 							//select 테이블에서 삭제
 							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
 							assert(recvSockets.end() != delPos);
@@ -124,36 +143,39 @@ void ChatServer::Run()
 							dirtyFlag = true;
 
 							//세션 테이블 삭제
-							Logger::Log("[SESSION Out] " + user->GetAddr());
-							assert(1 == EraseSession(readySoc));
-
-							if (recvLength < 0) //에러코드 핸들링
-							{
-								Logger::WsaLog(user->GetAddr().c_str(), WSAGetLastError());
-							}
+							Logger::Log("###[SESSION Out] 세션아웃 추가");
+							sessionTable.erase(readySoc);
 							continue;
 						}
 
-						int prevPos = max(0, static_cast<int>(user->m_data.size()) - 1);
-						user->PushData(buffer, recvLength);
+						//주어진 버퍼에서 순차적으로 데이터 삽입
+						std::string& userBuffer = sessionTable[readySoc][SE_BUFFER];
+						size_t prevPos = max(0, userBuffer.size() - 1);
+						for (int i = 0; i < recvLength; ++i)
+						{
+							if (buffer[i] == VK_BACK) //백스페이스는 기존 데이터에서 한 글자를 뺀다.
+								userBuffer.pop_back();
+							else
+								userBuffer.push_back(buffer[i]);
+						}
 						while (true)
 						{
-							size_t cmdPos = user->m_data.find("\r\n", prevPos); // 개행문자 발견 시 패킷 처리
+							size_t cmdPos = userBuffer.find("\r\n", prevPos); // 개행문자 발견 시 패킷 처리
 							if (std::string::npos != cmdPos)
 							{
 								if (0 != cmdPos) // 엔터만 연타로 치는 경우는 처리하지 않는다.
 								{
-									ProcessPacket(user, user->m_data.substr(0, cmdPos));
+									PushThreadJob(new MainJob( CMD_PROCESS, readySoc, new std::string(userBuffer.substr(0, cmdPos)) ));
 								}
-								user->m_data = user->m_data.substr(cmdPos + 2);
+								userBuffer = userBuffer.substr(cmdPos + 2);
+								prevPos = userBuffer.size() - 1;
 							}
 							else break;
 						}
 						//과다하게 메모리를 차지하는 것을 막기 위해 저장할 수 있는 최대 데이터 크기 제한.
-						if (user->m_data.size() > USERBUF_SIZE)
+						if (userBuffer.size() > USERBUF_SIZE)
 						{
-							user->m_data.clear();
-							user->SendChat(bufferoverMsg);
+							userBuffer.clear();
 						}
 					}
 				}
@@ -164,15 +186,15 @@ void ChatServer::Run()
 
 void ChatServer::Terminate()
 {
-	Logger::Log("[Terminate Server]");
 	//Listen 소켓 종료 후 WSA 종료.
 	closesocket(m_listener);
 	WSACleanup();
+	Logger::Log("[Terminate Server]");
 }
 
 bool ChatServer::InitWSA(short port)
 {
-	Logger::Log("[Initializing ChatServer - " + std::to_string(port) + "]");
+	Logger::Log("[Initializing ChatServer - PORT " + std::to_string(port) + "]");
 	WSADATA wsaData;
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 	{
@@ -203,347 +225,310 @@ bool ChatServer::InitWSA(short port)
 bool ChatServer::InitLobby()
 {
 	// 로비 생성, 로비는 사실상 인원제한이 없다.
-	m_lobby = g_roomManager.CreateRoom("Lobby", MAX_LOBBY_SIZE, false);
-	if (nullptr == m_lobby)
-		return false;
-	m_lobby->SetWeakPtr(m_lobby);
+	int a = g_roomManager.CreateRoom("Lobby", MAX_LOBBY_SIZE, false);
 	return true;
 }
 
-void ChatServer::ProcessPacket(UserPtr& user, std::string data)
+void ChatServer::ProcessPacket(const UserJob* jobPtr)
 {
 	static std::string alreadyLoginMsg{ "이미 로그인되어있습니다." };
 	static std::string plzLoginMsg{ "공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 
-	if (nullptr == user)
-	{
-		return;
-	}
-
-	Logger::Log("[USER SEND] " + user->GetAddr() + " " + user->GetName() + " " + data);
-
-	//명령어를 파싱 후
-	std::smatch param;
-	int cmd = m_cmdParser.Parse(data, param);
-
-	//로그인, 명령어 여부에 따라 이후 처리 분기
-	if (true == user->GetIsLogin())
-	{
-		switch (cmd)
+	if (nullptr != jobPtr) {
+		if (jobPtr->cmd == CMD_CONNECT)
 		{
-		case CMD_HELP:
-			ProcessHelp(user);
-			break;
+			g_userManager.AddUser(jobPtr->socket, jobPtr->data[0]);
+			g_userManager.SendMsg(jobPtr->socket, welcomeMsg);
+			
+			return;
+		}
+		if (jobPtr->cmd == CMD_DECREASE)
+		{
+			g_userManager.DecreaseUser(jobPtr->socket);
+			Logger::Log("DecreaseUser");
+			return;
+		}
 
-		case CMD_LOGIN:
-			user->SendChat(alreadyLoginMsg);
-			break;
+		User* user = g_userManager.GetUser(jobPtr->socket);
+		if (nullptr != user)
+		{
+			const std::vector<std::string>& data = jobPtr->data;
+			Logger::Log("[USER SEND] " + user->m_addr + " " + user->m_name + " " + data[0]);
+			//로그인, 명령어 여부에 따라 이후 처리 분기
+			if (true == user->m_login)
+			{
+				switch (jobPtr->cmd)
+				{
+				case CMD_HELP:
+					ProcessHelp(user);
+					break;
 
-		case CMD_CHAT:
-			ProcessChat(user, data);
-			break;
+				case CMD_LOGIN:
+					user->SendChat(alreadyLoginMsg);
+					break;
 
-		case CMD_JOIN:
-			ProcessJoin(user, std::stoi(param[1].str()));
-			break;
+				case CMD_CHAT:
+					ProcessChat(user, data[0]);
+					break;
 
-		case CMD_QUIT:
-			ProcessQuit(user);
-			break;
+				case CMD_JOIN:
+					ProcessJoin(user, std::stoi(data[1]));
+					break;
 
-		case CMD_MSG:
-			ProcessMsg(user, param[1].str(), param[2].str());
-			break;
+				case CMD_QUIT:
+					ProcessQuit(user);
+					break;
 
-		case CMD_USERLIST:
-			ProcessGetUserList(user);
-			break;
+				case CMD_MSG:
+					ProcessMsg(user, data[1], data[2]);
+					break;
 
-		case CMD_ROOMLIST:
-			ProcessGetRoomList(user);
-			break;
+				case CMD_USERLIST:
+					ProcessGetUserList(user);
+					break;
 
-		case CMD_ALLUSERLIST:
-			ProcessGetAllUserList(user);
-			break;
+				case CMD_ROOMLIST:
+					ProcessGetRoomList(user);
+					break;
 
-		case CMD_CREATEROOM:
-			ProcessCreateRoom(user, param[1].str(), std::stoi(param[2].str()));
-			break;
+				case CMD_ALLUSERLIST:
+					ProcessGetAllUserList(user);
+					break;
 
-		case CMD_ERROR:
-			ProcessError(user);
-			break;
+				case CMD_CREATEROOM:
+					ProcessCreateRoom(user, data[1], std::stoi(data[2]));
+					break;
+
+				case CMD_ERROR:
+					ProcessError(user);
+					break;
+				}
+			}
+			else
+			{
+				//로그인이 안된 경우 로그인만 처리.
+				switch (jobPtr->cmd)
+				{
+				case CMD_LOGIN:
+					ProcessLogin(user, data[1]);
+					break;
+
+				default:
+					user->SendChat(plzLoginMsg);
+					break;
+				}
+			}
 		}
 	}
-	else
-	{
-		//로그인이 안된 경우 로그인만 처리.
-		switch (cmd)
-		{
-		case CMD_LOGIN:
-			ProcessLogin(user, param[1].str());
-			break;
-
-		default:
-			user->SendChat(plzLoginMsg);
-			break;
-		}
-	}
 }
 
-void ChatServer::ExchangeRoom(UserPtr &user, RoomPtr &enterRoom)
-{
-	static std::string manyPeopleMsg{ "인원수 초과로 입장할 수 없습니다." };
-	if (nullptr == user ||
-		nullptr == enterRoom)
-	{
-		return;
-	}
-
-	//새로운 방에 입장 후 이전 방을 나가는 방식으로 작동한다.
-	RoomPtr oldRoomPtr = user->GetRoom();
-	if (true == enterRoom->Enter(user))
-	{
-		if (nullptr != oldRoomPtr)
-		{
-			oldRoomPtr->Leave(user);
-		}
-	}
-	else
-	{
-		//새로운 방에 입장 실패 시 오류 메세지 전송
-		user->SendChat(manyPeopleMsg);
-	}
-}
-
-UserPtr ChatServer::AddSession(SOCKET socket, SOCKADDR_IN addr)
-{
-	//Accept 발생 시 새로운 세션을 생성한다.
-	m_sessionTable.emplace(socket, new User(socket, addr));
-	if (nullptr != m_sessionTable[socket])
-	{
-		m_sessionTable[socket]->SetName(std::to_string(socket));
-		return m_sessionTable[socket];
-	}
-	return nullptr;
-}
-
-size_t ChatServer::EraseSession(SOCKET socket)
-{
-	return m_sessionTable.erase(socket);
-}
-
-void ChatServer::ProcessLogin(UserPtr &user, const std::string & userName)
+void ChatServer::ProcessLogin(User* user, const std::string & userName)
 {
 	static std::string errMsg{ "[로그인 실패] ID가 중복됩니다." };
 	static std::string longIdMsg{ "[로그인 실패] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
 
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
-	}
-
-	if (userName.size() > MAX_IDLENGTH)
-	{
-		user->SendChat(longIdMsg);
-		return;
-	}
-	if (false == user->GetIsLogin())
-	{
-		//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
-		if (true == g_userManager.AddUser(user, userName))
+		if (userName.size() > MAX_IDLENGTH)
 		{
-			Logger::Log("[USER LOGIN] " + user->GetAddr() + " " + user->GetName());
-			ProcessHelp(user);
-			m_lobby->Enter(user);
+			user->SendChat(longIdMsg);
 			return;
 		}
-		user->SendChat(errMsg);
-	}
-	return;
-}
-
-void ChatServer::ProcessChat(const UserPtr &sender, const std::string &msg)
-{
-	if (nullptr == sender)
-	{
+		if (false == user->m_login)
+		{
+			//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
+			if (true == g_userManager.Login(user->m_socket, userName))
+			{
+				ProcessHelp(user);
+				Logger::Log("[USER LOGIN] " + user->m_addr + " " + user->m_name);
+				g_roomManager.Enter(user->m_socket, user->m_name, LOBBY_INDEX);
+				user->m_room = LOBBY_INDEX;
+				return;
+			}
+			user->SendChat(errMsg);
+		}
 		return;
 	}
+}
 
-	const RoomPtr userRoom = sender->GetRoom();
-	if (nullptr != userRoom)
+void ChatServer::ProcessChat(User* sender, const std::string &msg)
+{
+	if (nullptr != sender)
 	{
-		userRoom->SendChat(sender, msg);
+		const Room* room = g_roomManager.GetRoom(sender->m_room);
+		if (nullptr != room)
+		{
+			room->SendChat(sender->m_socket, msg);
+		}
 	}
 }
 
-void ChatServer::ProcessJoin(UserPtr &user, int roomIdx)
+void ChatServer::ProcessJoin(User* user, int roomIdx)
 {
+	static std::string manyPeopleMsg{ "인원수 초과로 입장할 수 없습니다." };
 	static std::string alreadyExistMsg{ " 현재 있는 방입니다." };
 	static std::string noExistMsg{ " 없는 방번호입니다." };
 
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
-	}
-
-	RoomPtr oldRoom = user->GetRoom();
-	if (nullptr != oldRoom)
-	{
-		//같은 방으로의 재입장은 차단.
-		if (true == oldRoom->IsSameIdx(roomIdx))
+		//같은 방에는 입장이 불가하다.
+		if (user->m_room == roomIdx)
 		{
 			user->SendChat(alreadyExistMsg);
 			return;
 		}
-	}
 
-	RoomPtr newRoom = g_roomManager.GetRoom(roomIdx);
-	if (nullptr == newRoom)
-	{
-		//인덱스에 해당하는 방이 없다면 오류 메세지 전송.
-		user->SendChat(noExistMsg);
-		return;
+		const Room* newRoom = g_roomManager.GetRoom(roomIdx);
+		if (nullptr == newRoom)
+		{
+			//인덱스에 해당하는 방이 없다면 오류 메세지 전송.
+			user->SendChat(noExistMsg);
+			return;
+		}
+		else
+		{
+			if (true == g_roomManager.Enter(user->m_socket, user->m_name, roomIdx))
+			{
+				g_roomManager.Leave(user->m_socket, user->m_room);
+				user->m_room = roomIdx;
+			}
+			else
+			{
+				user->SendChat(manyPeopleMsg);
+			}
+		}
 	}
-	ExchangeRoom(user, newRoom);
 }
 
-void ChatServer::ProcessQuit(UserPtr &user)
+void ChatServer::ProcessQuit(User* user)
 {
 	static std::string errMsg{ " 로비에서는 나가실 수 없습니다." };
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
-	}
+		//같은 방에는 입장이 불가하다.
+		if (user->m_room == LOBBY_INDEX)
+		{
+			user->SendChat(errMsg);
+			return;
+		}
 
-	RoomPtr userRoom = user->GetRoom();
-	if (nullptr == userRoom)
-	{
-		return;
+		if (true == g_roomManager.Enter(user->m_socket, user->m_name, LOBBY_INDEX))
+		{
+			g_roomManager.Leave(user->m_socket, user->m_room);
+			user->m_room = LOBBY_INDEX;
+		}
 	}
-
-	//로비를 제외한 곳에서만 퇴장 가능.
-	//기존방 -> 로비로의 이동을 처리.
-	if (m_lobby == userRoom)
-	{
-		user->SendChat(errMsg);
-		return;
-	}
-	ExchangeRoom(user, m_lobby);
 }
 
-void ChatServer::ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg)
+void ChatServer::ProcessMsg(User* sender, const std::string& receiverName, const std::string& msg)
 {
 	static std::string cantSendSamePeopleMsg{ " 본인에게는 전송할 수 없습니다." };
 	static std::string cantFindPeopleMsg{ " 유저를 찾을 수 없습니다." };
 	static std::string noMsg{ " 공백 메세지는 전송할 수 없습니다." };
 	
-	if (nullptr == sender)
+	if (nullptr != sender)
 	{
-		return;
-	}
-
-	// 본인에게는 전송할 수 없다.
-	if (sender->GetName() == ("[" + receiverName + "]"))
-	{
-		sender->SendChat(cantSendSamePeopleMsg);
-		return;
-	}
-
-	// 해당 이름을 가진 유저를 탐색
-	const UserPtr receiver = g_userManager.GetUser(receiverName);
-	if (nullptr == receiver)
-	{
-		sender->SendChat(cantFindPeopleMsg);
-		return;
-	}
-
-	//CmdParser는 무조건 msg가 한 글자 이상 들어옴을 보장한다.
-	if (' ' == msg.back()) 
-	{
-		//문자열 맨 뒤 공백문자를 제거해서
-		std::string noBackWhiteSpaceMsg = msg;
-		m_cmdParser.EraseBackWhiteSpace(noBackWhiteSpaceMsg);
-		//공백문자열이면 에러처리
-		if (true == noBackWhiteSpaceMsg.empty())
+		// 본인에게는 전송할 수 없다.
+		if (sender->m_name == (receiverName))
 		{
-			sender->SendChat(noMsg);
+			sender->SendChat(cantSendSamePeopleMsg);
 			return;
 		}
-		//아니면 정상전송
-		receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + noBackWhiteSpaceMsg);
-		return;
+
+		// 해당 이름을 가진 유저를 탐색
+		User* receiver = g_userManager.GetUser(receiverName);
+		if (nullptr == receiver)
+		{
+			sender->SendChat(cantFindPeopleMsg);
+			return;
+		}
+
+		//CmdParser는 무조건 msg가 한 글자 이상 들어옴을 보장한다.
+		if (' ' == msg.back())
+		{
+			//문자열 맨 뒤 공백문자를 제거해서
+			std::string noBackWhiteSpaceMsg = msg;
+			m_cmdParser.EraseBackWhiteSpace(noBackWhiteSpaceMsg);
+			//공백문자열이면 에러처리
+			if (true == noBackWhiteSpaceMsg.empty())
+			{
+				sender->SendChat(noMsg);
+				return;
+			}
+			//아니면 정상전송
+			receiver->SendChat("[MESSAGE FROM] " + sender->m_name + " " + noBackWhiteSpaceMsg);
+			return;
+		}
+		else
+		{
+			receiver->SendChat("[MESSAGE FROM] " + sender->m_name + " " + msg);
+		}
 	}
-	receiver->SendChat("[MESSAGE FROM] " + sender->GetName() + " " + msg);
 }
 
-void ChatServer::ProcessGetUserList(const UserPtr &user)
+void ChatServer::ProcessGetUserList(User* user)
 {
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
-	}
-
-	//유저가 있는 방의 유저 목록 획득 후 전송
-	const RoomPtr userRoom = user->GetRoom();
-	if (nullptr != userRoom)
-	{
-		std::string userList = userRoom->GetUserList();
-		user->SendChat(userList);
+		//유저가 있는 방의 유저 목록 획득 후 전송
+		Room* userRoom = g_roomManager.GetRoom(user->m_room);
+		if (nullptr != userRoom)
+		{
+			std::string userList = userRoom->GetUserList();
+			user->SendChat(userList);
+		}
 	}
 }
 
-void ChatServer::ProcessGetRoomList(const UserPtr & user)
+void ChatServer::ProcessGetRoomList(User* user)
 {
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
+		//roomManager에 생성된 방 목록 획득 후 전송.
+		user->SendChat(g_roomManager.GetRoomList());
 	}
-
-	//roomManager에 생성된 방 목록 획득 후 전송.
-	std::string roomList = g_roomManager.GetRoomList();
-	user->SendChat(roomList);
 }
 
-void ChatServer::ProcessGetAllUserList(const UserPtr & user)
+void ChatServer::ProcessGetAllUserList(User* user)
 {
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
+		//접속한 모든 유저의 목록 획득 후 전송.
+		user->SendChat(g_userManager.GetUserList());
 	}
-	//접속한 모든 유저의 목록 획득 후 전송.
-	user->SendChat(g_userManager.GetUserList());
 }
 
-void ChatServer::ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser)
+void ChatServer::ProcessCreateRoom(User* user, const std::string& roomName, int maxUser)
 {
 	static std::string errMsg{ " 방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
 	static std::string failMakeRoomMsg{ "방 생성에 실패하였습니다." };
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
-	}
-	if (MINUSER_NUM > maxUser ||
-		MAXUSER_NUM < maxUser
-		)
-	{
-		user->SendChat(errMsg);
-		return;
-	}
-	//방 생성후 유저 입장
-	RoomPtr newRoom = g_roomManager.CreateRoom(roomName, maxUser);
-	if (nullptr == newRoom)
-	{
-		Logger::Log("[Error] - 방 생성 실패");
-		user->SendChat(failMakeRoomMsg);
-		return;
-	}
-	ExchangeRoom(user, newRoom);
+		if (MINUSER_NUM > maxUser ||
+			MAXUSER_NUM < maxUser
+			)
+		{
+			user->SendChat(errMsg);
+			return;
+		}
+		//방 생성후 유저 입장
+		int newRoom = g_roomManager.CreateRoom(roomName, maxUser);
+		if (OUT_OF_RANGE == newRoom)
+		{
+			user->SendChat(errMsg);
+			return;
+		}
 
+		if (true == g_roomManager.Enter(user->m_socket, user->m_name, newRoom))
+		{
+			g_roomManager.Leave(user->m_socket, user->m_room);
+			user->m_room = newRoom;
+		}
+	}
 }
 
-void ChatServer::ProcessHelp(const UserPtr & user)
+void ChatServer::ProcessHelp(User* user)
 {
 	//도움말 메세지 전송
 	static std::string helpCmd{
@@ -559,13 +544,144 @@ void ChatServer::ProcessHelp(const UserPtr & user)
 	user->SendChat(helpCmd);
 }
 
-void ChatServer::ProcessError(const UserPtr & user)
+void ChatServer::ProcessError(User* user)
 {
-	if (nullptr == user)
+	if (nullptr != user)
 	{
-		return;
+		//명령어 목록에 없는 명령어가 왔을 시 처리.
+		static std::string wrongCmd{ " 잘못된 명령어 형식입니다." };
+		user->SendChat(wrongCmd);
 	}
-	//명령어 목록에 없는 명령어가 왔을 시 처리.
-	static std::string wrongCmd{ " 잘못된 명령어 형식입니다." };
-	user->SendChat(wrongCmd);
+}
+
+
+
+void ChatServer::InitMultiThread()
+{
+	for (int i = 0; i < WORKERTHREAD_NUM; ++i)
+	{
+		m_workerThreads.emplace_back(&ChatServer::WorkerThread, this);
+	}
+}
+
+void ChatServer::WorkerThread()
+{
+	std::mutex Locker;
+	thread_id = abc++;
+	MainJob* curJob = nullptr;
+	while (true)
+	{
+		std::unique_lock<std::mutex> uLock(Locker);
+		m_notifier.wait(uLock, [&] { return 0 < m_workerJobCnt; });
+
+		do	{
+			int remainJob = m_workerJobCnt;
+			if (0 < remainJob)
+			{
+				if (true == std::atomic_compare_exchange_strong(&m_workerJobCnt, &remainJob, 0))
+				{
+					for (int left = 0; left < remainJob; ++left)
+					{
+						while (false == m_workerQueue.try_pop(curJob)) {};
+
+						if (nullptr != curJob)
+						{
+							switch (curJob->cmd)
+							{
+							case CMD_CONNECT:
+								PushUserJob(new UserJob(CMD_CONNECT, curJob->socket, 0, curJob->data));
+								break;
+							case CMD_DECREASE:
+								PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, 0));
+								break;
+
+							case CMD_PROCESS:
+							{
+								//명령어를 파싱 후
+								std::smatch param;
+								int cmd = m_cmdParser.Parse(*curJob->data, param);
+								if (false == param.empty())
+								{
+									Logger::Log("Posting UserJob - Process");
+									PushUserJob(new UserJob(cmd, curJob->socket, 0, param));
+								}
+								else
+								{
+									Logger::Log("Posting UserJob - Process");
+									PushUserJob(new UserJob(cmd, curJob->socket, 0, curJob->data));
+								}
+							}
+								break;
+
+							case CMD_SEND:
+								if (INVALID_SOCKET != curJob->socket) 
+								{
+									int sendLength = send(curJob->socket, curJob->data->c_str(), static_cast<int>(curJob->data->size()), 0);
+									if (sendLength == 0) //종료처리
+									{
+										Logger::Log("Send Done, Posting Decrease");
+										PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
+									}
+									else if (sendLength < 0)
+									{
+										Logger::Log("Send Done, Posting Decrease");
+										PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
+									}
+									Logger::Log("Send Done, Posting Decrease");
+									PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
+								}
+								break;
+							}
+							delete curJob;
+							curJob = nullptr;
+						}
+					}
+				}
+			}
+		} while (0 < m_workerJobCnt);
+	}
+}
+
+void ChatServer::PushThreadJob(MainJob* jobPtr)
+{
+	if (nullptr != jobPtr)
+	{
+		++m_workerJobCnt;
+		m_workerQueue.push(jobPtr);
+		m_notifier.notify_one();
+	}
+}
+
+void ChatServer::PushUserJob(UserJob* jobPtr)
+{
+	Logger::Log("ENQUE " + std::to_string(jobPtr->cmd));
+	if (nullptr != jobPtr)
+	{
+		if (0 != m_userJobCnt.fetch_add(1))
+		{
+			m_userQueue.push(jobPtr);
+		}
+		else
+		{
+			m_userQueue.push(jobPtr);
+			int remainJob = m_userJobCnt;
+			int left;
+			UserJob* newJob = nullptr;
+			Logger::Log("		Flush Start " + std::to_string(thread_id));
+			do	{
+				for (left = 0; left < remainJob; ++left)
+				{
+					while (false == m_userQueue.try_pop(newJob)) {};
+					//Logger::Log("DEQUE " + std::to_string(newJob->cmd));
+					if (newJob->cmd == 12) {
+						Logger::Log("DEQUE " + std::to_string(newJob->cmd) + " " + std::to_string(thread_id));
+					}
+					ProcessPacket(newJob);
+					delete newJob;
+					newJob = nullptr;
+				}
+			} while (remainJob != m_userJobCnt.fetch_sub(remainJob));
+			Logger::Log("		Flush End " + std::to_string(thread_id));
+		}
+	}
 }

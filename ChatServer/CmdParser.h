@@ -21,7 +21,12 @@ enum CMD_TYPE
 	CMD_MSG,			///< 귓속말
 	CMD_CREATEROOM,		///< 방 생성
 	CMD_ERROR,			///< 오류
-	CMD_COUNT			///< 명령어 총 갯수
+	CMD_COUNT,			///< 명령어 총 갯수
+
+	CMD_CONNECT,
+	CMD_DECREASE,
+	CMD_PROCESS,
+	CMD_SEND
 };
 /**
 *@brief 문자열에서 명령 타입, 인수를 파싱하는 객체.

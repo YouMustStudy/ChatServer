@@ -19,11 +19,28 @@
 #include "Logger.h"
 #include "UtilFunc.h"
 
+///MultiThread
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <concurrent_queue.h>
+#include "Job.h"
+
+enum SESSION
+{
+	SE_BUFFER,
+	SE_ADDR,
+	SE_COUNT
+};
+
 class ChatServer
 {
-	using sessionTable = std::map<SOCKET, UserPtr>;
+	using SessionTable = std::map<SOCKET, std::string[SE_COUNT]>;
 
 public:
+	static ChatServer& Instance();
+
 	/**
 	*@brief 서버를 초기화한다.
 	*@param[in] 서버의 포트 번호.
@@ -43,9 +60,9 @@ public:
 
 private:
 	SOCKET m_listener{INVALID_SOCKET};				///< Listen 소켓
-	sessionTable m_sessionTable;					///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
-	RoomPtr m_lobby{nullptr};						///< 로비의 포인터
 	CmdParser m_cmdParser;							///< 명령어 처리객체
+
+	ChatServer() {};
 
 	/**
 	*@brief WSA환경 초기화.
@@ -62,31 +79,10 @@ private:
 
 	/**
 	*@brief 패킷을 처리한다.
-	*@param[in] user 요청한 유저의 포인터.
+	*@param[in] user 요청한 유저의 소켓.
 	*@param[in] data 처리할 데이터.
 	*/
-	void ProcessPacket(UserPtr& user, std::string data);
-
-	/**
-	*@brief 유저를 기존 방에서 새로운 방으로 이동시킨다.
-	*@param[in] user 요청한 유저의 포인터.
-	*@param[in] enterRoom 새로 들어갈 방의 포인터.
-	*/
-	void ExchangeRoom(UserPtr& user, RoomPtr& enterRoom);
-
-	/**
-	*@brief 새로운 유저 접속 시 세션을 추가한다.
-	*@param[in] socket 세션에서 사용할 소켓.
-	*@return 생성된 세션의 UserPtr, 실패 시 nullptr.
-	*/
-	UserPtr AddSession(SOCKET socket, SOCKADDR_IN addr);
-
-	/**
-	*@brief 접속 종료 시 세션을 삭제한다.
-	*@param[in] socket 세션에서 사용하던 소켓.
-	*@return 성공 시 1, 실패 시 0.
-	*/
-	size_t EraseSession(SOCKET socket);
+	void ProcessPacket(const UserJob* jobPtr);
 
 	// 명령어 처리 함수들.
 	/**
@@ -94,27 +90,27 @@ private:
 	*@param[in] user 요청한 유저의 포인터.
 	*@param[in] userName 로그인할 이름.
 	*/
-	void ProcessLogin(UserPtr &user, const std::string& userName);
+	void ProcessLogin(User* user, const std::string& userName);
 
 	/**
 	*@brief 채팅 패킷을 처리한다.
 	*@param[in] user 송신자의 포인터.
 	*@param[in] msg 보낼 메세지.
 	*/
-	void ProcessChat(const UserPtr& sender, const std::string& msg);
+	void ProcessChat(User* sender, const std::string& msg);
 
 	/**
 	*@brief 입장 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*@param[in] userName 로그인할 방의 인덱스.
 	*/
-	void ProcessJoin(UserPtr& user, int roomIdx);
+	void ProcessJoin(User* user, int roomIdx);
 
 	/**
 	*@brief 퇴장 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessQuit(UserPtr& user);
+	void ProcessQuit(User* user);
 
 	/**
 	*@brief 귓속말 패킷을 처리한다.
@@ -122,25 +118,25 @@ private:
 	*@param[in] receiverName 수신자의 이름.
 	*@param[in] msg 보낼 메세지.
 	*/
-	void ProcessMsg(const UserPtr& sender, const std::string& receiverName, const std::string& msg);
+	void ProcessMsg(User* sender, const std::string& receiverName, const std::string& msg);
 
 	/**
 	*@brief 현재 방 내 유저 목록 요청 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessGetUserList(const UserPtr& user);
+	void ProcessGetUserList(User* user);
 
 	/**
 	*@brief 방 목록 요청 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessGetRoomList(const UserPtr& user);
+	void ProcessGetRoomList(User* user);
 
 	/**
 	*@brief 서버 내 유저 목록 요청 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessGetAllUserList(const UserPtr& user);
+	void ProcessGetAllUserList(User* user);
 
 	/**
 	*@brief 방 생성 요청 패킷을 처리한다. 유저는 방 생성 후 바로 해당 방으로 입장한다.
@@ -148,17 +144,44 @@ private:
 	*@param[in] roomName 생성할 방의 이름.
 	*@param[in] maxUser 방의 인원 제한 수.
 	*/
-	void ProcessCreateRoom(UserPtr & user, const std::string& roomName, int maxUser);
+	void ProcessCreateRoom(User* user, const std::string& roomName, int maxUser);
 
 	/**
 	*@brief 도움말 요청 패킷을 처리한다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessHelp(const UserPtr& user);
+	void ProcessHelp(User* user);
 
 	/**
 	*@brief 잘못된 명령어를 수신받았을 때의 처리함수. 유저에게 오류 메세지를 보낸다.
 	*@param[in] user 요청한 유저의 포인터.
 	*/
-	void ProcessError(const UserPtr& user);
+	void ProcessError(User* user);
+
+
+	///select 기반으로 IOCP와 비슷한 모델을 구축하는 것을 목표로 한다.
+	///APC Queue로 PPL의 concurrent_queue를 사용.
+	///GSCQ를 c++의 condition_variable로 대체한다.
+	///MultiThread.
+	concurrency::concurrent_queue<MainJob*> m_workerQueue;	/// 작업자 작업 저장 큐
+	std::atomic_int m_workerJobCnt;							/// 남은 작업 갯수 - PPL의 cQ의 size는 정확하지 않음.
+	std::condition_variable m_notifier;						/// 작업 발생 통보용 Condition Variable
+	std::vector<std::thread> m_workerThreads;				/// 작업 스레드 보관 컨테이너
+
+	concurrency::concurrent_queue<UserJob*> m_userQueue;	/// 유저 작업 저장 큐
+	std::atomic_int m_userJobCnt;							/// 남은 작업 갯수 - PPL의 cQ의 size는 정확하지 않음.
+
+	///작업자 스레드 생성
+	void InitMultiThread();
+	///작업자 함수
+	void WorkerThread();
+
+	void PushUserJob(UserJob* jobPtr);
+
+	public:
+	///작업 추가 및 통보, 인자 : user - 대상 유저의 포인터, ev_type - 이벤트 타입, data - 처리할 데이터
+	void PushThreadJob(MainJob* jobPtr);
 };
+
+//@brief ChatServer 호출 매크로.
+#define g_chatServer (ChatServer::Instance())
