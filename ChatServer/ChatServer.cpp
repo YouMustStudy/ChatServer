@@ -24,75 +24,78 @@ bool ChatServer::Initialize(short port)
 	}
 
 	InitMultiThread();
-	
+
 	return true;
 }
 
 void ChatServer::Run()
 {
 	std::string bufferoverMsg{ std::to_string(USERBUF_SIZE) + "자 이상으로 문자를 입력할 수 없습니다." };
-	
 	Logger::Log("[Start Running]");
-	
-	SessionTable sessionTable;	///< 세션 테이블(로그인 이전 유저를 포함하는 전체 테이블)
 
-	// Recv는 순차적으로 처리된다.
-	// Accept, Disconnect로 발생한 소켓 변경은 동기적으로 처리가능하다.
-	// => Recv용 소켓은 지역변수로 관리 가능.
-	std::deque<SOCKET> recvSockets; // 순회가 잦으면서도 추가삭제가 반복적으로 일어나 deque 선택.
-	recvSockets.emplace_back(m_listener);
-	std::vector<fd_set> masterFdSets;
-	std::vector<SOCKET> maxFds;
-	bool dirtyFlag = true;
-
-	masterFdSets.emplace_back();
-	maxFds.emplace_back(0);
-
-	//select는 64인 제한이 있음.
-	//이를 해결하기 위해 소켓을 순차적으로 fd_set에 추가, select를 반복적으로 호출한다.
-	//매번 fd_set을 갱신하는 것은 오버헤드가 있으므로
-	//갱신이 필요한 상황(Accept, Disconnect)에서만 dirtyFlag를 세팅, 다음 순회에서 갱신한다.
-	//timeval timeout{ 0, 0 };
 	fd_set copyFdSet;
+	fd_set masterFdSet;
+
+	SessionTable sessionTable;
+	FD_ZERO(&masterFdSet);
+	FD_SET(m_listener, &masterFdSet);
+	SOCKET maxFd = m_listener;
+
+	timeval timeout{ 0, 500 };
 	char buffer[BUF_SIZE + 1];
 	char addrArray[INET_ADDRSTRLEN];
 	while (true)
 	{
-		int loopCnt = (static_cast<int>(recvSockets.size()) - 1) / FD_SETSIZE + 1;
-		// 소켓 리스트에 변경 발생 시 FdSet 갱신.
-		if (true == dirtyFlag)
+		// 합칠 recvThread가 있으면 메인 스레드와 합침.
+		while (false == m_sessionQueue.empty())
 		{
-			while (masterFdSets.size() < loopCnt)
+			SessionTable* stocks = nullptr;
+			while (false == m_sessionQueue.try_pop(stocks)) {};
+			for (const auto& session : *stocks)
 			{
-				masterFdSets.emplace_back();
-				maxFds.emplace_back(0);
+				sessionTable[session.first] = session.second;
 			}
-
-			for (int fdSetIdx = 0; fdSetIdx < masterFdSets.size(); ++fdSetIdx)
-			{
-				FD_ZERO(&masterFdSets[fdSetIdx]);
-				maxFds[fdSetIdx] = 0;
-				for (int socIdx = FD_SETSIZE*fdSetIdx; socIdx < recvSockets.size(); ++socIdx)
-				{
-					FD_SET(recvSockets[socIdx], &masterFdSets[fdSetIdx]);
-					maxFds[fdSetIdx] = max(maxFds[fdSetIdx], recvSockets[socIdx]);
-				}
-			}
-			dirtyFlag = false;
+			delete stocks;
 		}
 
-		// 이후 반복적으로 select 호출.
-		for (int fdSetNum = 0; fdSetNum < loopCnt; ++fdSetNum)
+		// -1은 ListenSocket을 고려한 것.
+		// 63개 단위로 recvThread folk.
+		if (FD_SETSIZE - 1 <= sessionTable.size())
 		{
-			copyFdSet = masterFdSets[fdSetNum];
-			int numFd = select(static_cast<int>(maxFds[fdSetNum]) + 1, &copyFdSet, 0, 0, 0);
-			assert(numFd >= 0);
-			if (numFd == 0)
+			while (FD_SETSIZE - 1 <= sessionTable.size())
 			{
-				continue;
+				int cnt = 0;
+				SessionTable* folk = new SessionTable;
+				for (auto iter = sessionTable.begin(); iter != sessionTable.end();)
+				{
+					(*folk)[iter->first] = iter->second;
+					sessionTable.erase(iter++);
+					if (FD_SETSIZE - 1 == ++cnt)
+					{
+						break;
+					}
+				}
+				m_recvThreads.emplace_back(&ChatServer::RecvThread, this, folk);
 			}
+			//다시 재설정.
+			FD_ZERO(&masterFdSet);
+			FD_SET(m_listener, &masterFdSet);
+			maxFd = m_listener;
+			for (const auto& session : sessionTable)
+			{
+				FD_SET(session.first, &masterFdSet);
+				maxFd = max(session.first, maxFd);
+			}
+		}
 
-			for (int readySoc = 0; readySoc < maxFds[fdSetNum] + 1; ++readySoc)
+		//실질 처리부.
+		timeout.tv_usec = SELECT_TIMEOUT;
+		copyFdSet = masterFdSet;
+		int numFd = select(static_cast<int>(maxFd) + 1, &copyFdSet, 0, 0, &timeout);
+		assert(numFd >= 0);
+		if (numFd != 0)
+		{
+			for (int readySoc = 0; readySoc < maxFd + 1; ++readySoc)
 			{
 				if (FD_ISSET(readySoc, &copyFdSet))
 				{
@@ -104,20 +107,21 @@ void ChatServer::Run()
 						SOCKET clientSocket = accept(m_listener, reinterpret_cast<sockaddr*>(&clientAddr), &len);
 						if (INVALID_SOCKET != clientSocket)
 						{
+							maxFd = max(clientSocket, maxFd);
+							FD_SET(clientSocket, &masterFdSet);
 							// recv용 소켓컨테이너에 등록
-							recvSockets.emplace_back(clientSocket);
-							dirtyFlag = true;
-
+							sessionTable.emplace(clientSocket, Session());
 							// 세션에 유저 추가
-							sessionTable[clientSocket][SE_BUFFER].clear();
-							sessionTable[clientSocket][SE_ADDR].clear();
-							Logger::Log("###[SESSION IN] 세션인 추가");
+							sessionTable[clientSocket].socket = clientSocket;
+							sessionTable[clientSocket].addr.clear();
+							sessionTable[clientSocket].buffer.clear();
 
 							// 유저 접속 이벤트 포스팅
 							inet_ntop(AF_INET, &clientAddr.sin_addr, addrArray, INET_ADDRSTRLEN);
-							sessionTable[clientSocket][SE_ADDR] = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(clientAddr.sin_port)) + "]";
-							std::string* addrText = new std::string(sessionTable[clientSocket][SE_ADDR]);
-							PushThreadJob(new MainJob( CMD_CONNECT, clientSocket, addrText ));
+							sessionTable[clientSocket].addr = "[" + std::string(addrArray) + ":" + std::to_string(ntohs(clientAddr.sin_port)) + "]";
+							std::string* addrText = new std::string(sessionTable[clientSocket].addr);
+							PushThreadJob(new MainJob(CMD_CONNECT, clientSocket, addrText));
+							Logger::Log("[SESSION IN] " + sessionTable[clientSocket].addr);
 						}
 					}
 					// Recv
@@ -126,30 +130,25 @@ void ChatServer::Run()
 						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
 						if (recvLength <= 0) //종료처리
 						{
-							//유저테이블 삭제
-							if (0 == recvLength) 
+							//접속종료를 WorkerThread에 통보
+							if (0 == recvLength)
 							{
-								PushThreadJob(new MainJob( CMD_DECREASE, readySoc, nullptr ));
+								PushThreadJob(new MainJob(CMD_DECREASE, readySoc, nullptr));
 							}
 							else if (0 > recvLength) //에러코드 핸들링
 							{
-								PushThreadJob(new MainJob( CMD_DECREASE, readySoc, nullptr ));
+								PushThreadJob(new MainJob(CMD_DECREASE, readySoc, nullptr));
 							}
-							
-							//select 테이블에서 삭제
-							auto delPos = std::find(recvSockets.begin(), recvSockets.end(), readySoc);
-							assert(recvSockets.end() != delPos);
-							recvSockets.erase(delPos);
-							dirtyFlag = true;
 
-							//세션 테이블 삭제
-							Logger::Log("###[SESSION Out] 세션아웃 추가");
+							//select 테이블에서 삭제
+							Logger::Log("[SESSION OUT] " + sessionTable[readySoc].addr);
+							FD_CLR(readySoc, &masterFdSet);
 							sessionTable.erase(readySoc);
 							continue;
 						}
 
 						//주어진 버퍼에서 순차적으로 데이터 삽입
-						std::string& userBuffer = sessionTable[readySoc][SE_BUFFER];
+						std::string& userBuffer = sessionTable[readySoc].buffer;
 						size_t prevPos = max(0, userBuffer.size() - 1);
 						for (int i = 0; i < recvLength; ++i)
 						{
@@ -165,7 +164,7 @@ void ChatServer::Run()
 							{
 								if (0 != cmdPos) // 엔터만 연타로 치는 경우는 처리하지 않는다.
 								{
-									PushThreadJob(new MainJob( CMD_PROCESS, readySoc, new std::string(userBuffer.substr(0, cmdPos)) ));
+									PushThreadJob(new MainJob(CMD_PROCESS, readySoc, new std::string(userBuffer.substr(0, cmdPos))));
 								}
 								userBuffer = userBuffer.substr(cmdPos + 2);
 								prevPos = userBuffer.size() - 1;
@@ -225,7 +224,10 @@ bool ChatServer::InitWSA(short port)
 bool ChatServer::InitLobby()
 {
 	// 로비 생성, 로비는 사실상 인원제한이 없다.
-	int a = g_roomManager.CreateRoom("Lobby", MAX_LOBBY_SIZE, false);
+	if (LOBBY_INDEX != g_roomManager.CreateRoom("Lobby", MAX_LOBBY_SIZE, false))
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -240,7 +242,7 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 		{
 			g_userManager.AddUser(jobPtr->socket, jobPtr->data[0]);
 			g_userManager.SendMsg(jobPtr->socket, welcomeMsg);
-			
+
 			return;
 		}
 		if (jobPtr->cmd == CMD_DECREASE)
@@ -323,7 +325,7 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 	}
 }
 
-void ChatServer::ProcessLogin(User* user, const std::string & userName)
+void ChatServer::ProcessLogin(User* user, const std::string& userName)
 {
 	static std::string errMsg{ "[로그인 실패] ID가 중복됩니다." };
 	static std::string longIdMsg{ "[로그인 실패] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
@@ -352,7 +354,7 @@ void ChatServer::ProcessLogin(User* user, const std::string & userName)
 	}
 }
 
-void ChatServer::ProcessChat(User* sender, const std::string &msg)
+void ChatServer::ProcessChat(User* sender, const std::string& msg)
 {
 	if (nullptr != sender)
 	{
@@ -426,7 +428,7 @@ void ChatServer::ProcessMsg(User* sender, const std::string& receiverName, const
 	static std::string cantSendSamePeopleMsg{ " 본인에게는 전송할 수 없습니다." };
 	static std::string cantFindPeopleMsg{ " 유저를 찾을 수 없습니다." };
 	static std::string noMsg{ " 공백 메세지는 전송할 수 없습니다." };
-	
+
 	if (nullptr != sender)
 	{
 		// 본인에게는 전송할 수 없다.
@@ -555,7 +557,6 @@ void ChatServer::ProcessError(User* user)
 }
 
 
-
 void ChatServer::InitMultiThread()
 {
 	for (int i = 0; i < WORKERTHREAD_NUM; ++i)
@@ -574,7 +575,7 @@ void ChatServer::WorkerThread()
 		std::unique_lock<std::mutex> uLock(Locker);
 		m_notifier.wait(uLock, [&] { return 0 < m_workerJobCnt; });
 
-		do	{
+		do {
 			int remainJob = m_workerJobCnt;
 			if (0 < remainJob)
 			{
@@ -589,9 +590,11 @@ void ChatServer::WorkerThread()
 							switch (curJob->cmd)
 							{
 							case CMD_CONNECT:
+								Logger::Log("Posting UserJob - Connect");
 								PushUserJob(new UserJob(CMD_CONNECT, curJob->socket, 0, curJob->data));
 								break;
 							case CMD_DECREASE:
+								Logger::Log("Posting UserJob - DisConn");
 								PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, 0));
 								break;
 
@@ -611,10 +614,10 @@ void ChatServer::WorkerThread()
 									PushUserJob(new UserJob(cmd, curJob->socket, 0, curJob->data));
 								}
 							}
-								break;
+							break;
 
 							case CMD_SEND:
-								if (INVALID_SOCKET != curJob->socket) 
+								if (INVALID_SOCKET != curJob->socket)
 								{
 									int sendLength = send(curJob->socket, curJob->data->c_str(), static_cast<int>(curJob->data->size()), 0);
 									if (sendLength == 0) //종료처리
@@ -639,6 +642,98 @@ void ChatServer::WorkerThread()
 				}
 			}
 		} while (0 < m_workerJobCnt);
+	}
+}
+
+void ChatServer::RecvThread(SessionTable* sessions)
+{
+	if (nullptr != sessions)
+	{
+		//Folk Thread는 Recv만 처리한다.
+		Logger::Log("[RECV THREAD FOLK]");
+		SessionTable& sessionTable = *sessions;
+
+		fd_set copyFdSet;
+		fd_set masterFdSet;
+
+		SOCKET maxFd = 0;
+		FD_ZERO(&masterFdSet);
+		for (const auto& session : sessionTable)
+		{
+			FD_SET(session.first, &masterFdSet);
+			maxFd = max(session.first, maxFd);
+		}
+
+		char buffer[BUF_SIZE + 1];
+		while (SOCKET_LOWER_BOUND < sessionTable.size())
+		{
+			copyFdSet = masterFdSet;
+			int numFd = select(static_cast<int>(maxFd) + 1, &copyFdSet, 0, 0, 0);
+			assert(numFd >= 0);
+			if (numFd != 0)
+			{
+				for (int readySoc = 0; readySoc < maxFd + 1; ++readySoc)
+				{
+					if (FD_ISSET(readySoc, &copyFdSet))
+					{
+						int recvLength = recv(readySoc, reinterpret_cast<char*>(buffer), BUF_SIZE, 0);
+						if (recvLength <= 0) //종료처리
+						{
+							//접속종료를 WorkerThread에 통보
+							if (0 == recvLength)
+							{
+								PushThreadJob(new MainJob(CMD_DECREASE, readySoc, nullptr));
+							}
+							else if (0 > recvLength) //에러코드 핸들링
+							{
+								PushThreadJob(new MainJob(CMD_DECREASE, readySoc, nullptr));
+							}
+
+							//select 테이블에서 삭제
+							Logger::Log("[SESSION OUT] " + sessionTable[readySoc].addr);
+							FD_CLR(readySoc, &masterFdSet);
+							sessionTable.erase(readySoc);
+							continue;
+						}
+
+						//주어진 버퍼에서 순차적으로 데이터 삽입
+						std::string& userBuffer = sessionTable[readySoc].buffer;
+						size_t prevPos = max(0, userBuffer.size() - 1);
+						for (int i = 0; i < recvLength; ++i)
+						{
+							if (buffer[i] == VK_BACK) //백스페이스는 기존 데이터에서 한 글자를 뺀다.
+								userBuffer.pop_back();
+							else
+								userBuffer.push_back(buffer[i]);
+						}
+						while (true)
+						{
+							size_t cmdPos = userBuffer.find("\r\n", prevPos); // 개행문자 발견 시 패킷 처리
+							if (std::string::npos != cmdPos)
+							{
+								if (0 != cmdPos) // 엔터만 연타로 치는 경우는 처리하지 않는다.
+								{
+									PushThreadJob(new MainJob(CMD_PROCESS, readySoc, new std::string(userBuffer.substr(0, cmdPos))));
+								}
+								userBuffer = userBuffer.substr(cmdPos + 2);
+								prevPos = userBuffer.size() - 1;
+							}
+							else break;
+						}
+						//과다하게 메모리를 차지하는 것을 막기 위해 저장할 수 있는 최대 데이터 크기 제한.
+						if (userBuffer.size() > USERBUF_SIZE)
+						{
+							userBuffer.clear();
+						}
+					}
+				}
+			}
+		}
+
+		//세션이 일정 갯수 이하로 감소하면
+		//메인스레드와 병합 후 스레드를 종료한다.
+		m_sessionQueue.push(sessions);
+		Logger::Log("[RECV THREAD END]");
 	}
 }
 
@@ -668,14 +763,10 @@ void ChatServer::PushUserJob(UserJob* jobPtr)
 			int left;
 			UserJob* newJob = nullptr;
 			Logger::Log("		Flush Start " + std::to_string(thread_id));
-			do	{
+			do {
 				for (left = 0; left < remainJob; ++left)
 				{
 					while (false == m_userQueue.try_pop(newJob)) {};
-					//Logger::Log("DEQUE " + std::to_string(newJob->cmd));
-					if (newJob->cmd == 12) {
-						Logger::Log("DEQUE " + std::to_string(newJob->cmd) + " " + std::to_string(thread_id));
-					}
 					ProcessPacket(newJob);
 					delete newJob;
 					newJob = nullptr;

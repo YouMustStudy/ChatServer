@@ -8,7 +8,6 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <deque>
 #include <assert.h>
 #include <algorithm>
 
@@ -18,6 +17,8 @@
 #include "Config.h"
 #include "Logger.h"
 #include "UtilFunc.h"
+#include "Session.h"
+
 
 ///MultiThread
 #include <atomic>
@@ -27,17 +28,8 @@
 #include <concurrent_queue.h>
 #include "Job.h"
 
-enum SESSION
-{
-	SE_BUFFER,
-	SE_ADDR,
-	SE_COUNT
-};
-
 class ChatServer
 {
-	using SessionTable = std::map<SOCKET, std::string[SE_COUNT]>;
-
 public:
 	static ChatServer& Instance();
 
@@ -158,7 +150,6 @@ private:
 	*/
 	void ProcessError(User* user);
 
-
 	///select 기반으로 IOCP와 비슷한 모델을 구축하는 것을 목표로 한다.
 	///APC Queue로 PPL의 concurrent_queue를 사용.
 	///GSCQ를 c++의 condition_variable로 대체한다.
@@ -167,19 +158,40 @@ private:
 	std::atomic_int m_workerJobCnt;							/// 남은 작업 갯수 - PPL의 cQ의 size는 정확하지 않음.
 	std::condition_variable m_notifier;						/// 작업 발생 통보용 Condition Variable
 	std::vector<std::thread> m_workerThreads;				/// 작업 스레드 보관 컨테이너
+	std::vector<std::thread> m_recvThreads;
 
 	concurrency::concurrent_queue<UserJob*> m_userQueue;	/// 유저 작업 저장 큐
 	std::atomic_int m_userJobCnt;							/// 남은 작업 갯수 - PPL의 cQ의 size는 정확하지 않음.
 
-	///작업자 스레드 생성
+	concurrency::concurrent_queue<SessionTable*>	m_sessionQueue; /// RecvThread 중 소켓 갯수가 일정 수 이하로 감소한 스레드들의 소켓.
+
+	/**
+	*@brief 작업자 스레드를 생성한다.
+	*/
 	void InitMultiThread();
-	///작업자 함수
+
+	/**
+	*@brief send와 명령어 파싱 처리를 한다.
+	*/
 	void WorkerThread();
 
+	/**
+	*@brief select Folk thread Function. SOCKET_LOWER_BOUND 숫자 이하로 세션이 감소하면 메인스레드와 결합한다.
+	*@param[in] sessions folk할 세션들이 담긴 SessionTable 포인터.
+	*/
+	void RecvThread(SessionTable* sessions);
+
+	/**
+	*@brief 메인 작업을 cQ에 삽입한다. 가장 먼저 삽입한 스레드가 선점권을 갖고 큐를 수행한다.
+	*@param[in] jobPtr 추가할 작업의 포인터.
+	*/
 	void PushUserJob(UserJob* jobPtr);
 
 	public:
-	///작업 추가 및 통보, 인자 : user - 대상 유저의 포인터, ev_type - 이벤트 타입, data - 처리할 데이터
+	/**
+	*@brief WorkerThread에 작업을 통보한다. 작업의 종류는 send와 명령어 파싱, 접속/종료 통보가 있다.
+	*@paran[in] jobPtr 추가할 작업의 포인터.
+	*/
 	void PushThreadJob(MainJob* jobPtr);
 };
 
