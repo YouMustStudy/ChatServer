@@ -28,6 +28,12 @@
     <Filter Include="ChatServer\Common\Room">
       <UniqueIdentifier>{a85cb8f9-6391-48a8-999f-4483ef4d301d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ChatServer\Common\Session">
+      <UniqueIdentifier>{d45baa2c-aadd-44d2-a753-af04be2fe39a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ChatServer\Common\Job">
+      <UniqueIdentifier>{849b90a1-4e34-4151-ab9a-cbd144251cd4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -45,20 +51,17 @@
     <ClCompile Include="Logger.cpp">
       <Filter>ChatServer\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Job.cpp">
-      <Filter>ChatServer\Common</Filter>
-    </ClCompile>
     <ClCompile Include="User.cpp">
       <Filter>ChatServer\Common\User</Filter>
     </ClCompile>
     <ClCompile Include="Room.cpp">
       <Filter>ChatServer\Common\Room</Filter>
     </ClCompile>
-    <ClCompile Include="PacketProcesser.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="Session.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>ChatServer\Common\Session</Filter>
+    </ClCompile>
+    <ClCompile Include="Job.cpp">
+      <Filter>ChatServer\Common\Job</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -77,20 +80,17 @@
     <ClInclude Include="Logger.h">
       <Filter>ChatServer\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Job.h">
-      <Filter>ChatServer\Common</Filter>
-    </ClInclude>
     <ClInclude Include="User.h">
       <Filter>ChatServer\Common\User</Filter>
     </ClInclude>
     <ClInclude Include="Room.h">
       <Filter>ChatServer\Common\Room</Filter>
     </ClInclude>
-    <ClInclude Include="PacketProcesser.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="Session.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>ChatServer\Common\Session</Filter>
+    </ClInclude>
+    <ClInclude Include="Job.h">
+      <Filter>ChatServer\Common\Job</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

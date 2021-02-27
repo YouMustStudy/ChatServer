@@ -20,7 +20,6 @@ void User::SendChat(const std::string &msg)
 	++m_refCnt;
 	std::string completeMsg = msg + "\r\n";
 	//SendJob Æ÷½ºÆÃ.
-	Logger::Log("Send Posting " + std::to_string(m_refCnt));
 	g_chatServer.PushThreadJob(new MainJob{ CMD_SEND, m_socket, new std::string((completeMsg))});
 }
 
@@ -114,7 +113,6 @@ void UserManager::DecreaseUser(SOCKET socket)
 	{
 		size_t userPos = m_SocketTable[socket];
 		int leftCnt = --m_userList[userPos].m_refCnt;
-		Logger::Log("Decrease" + std::to_string(leftCnt));
 		if (0 == leftCnt)
 		{
 			DisconnectUser(socket);

@@ -142,7 +142,6 @@
     <ClCompile Include="CmdParser.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="PacketProcesser.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="Job.cpp" />
     <ClCompile Include="Session.cpp" />
@@ -154,7 +153,6 @@
     <ClInclude Include="CmdParser.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Logger.h" />
-    <ClInclude Include="PacketProcesser.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="Job.h" />
     <ClInclude Include="Session.h" />

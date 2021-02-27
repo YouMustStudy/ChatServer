@@ -20,8 +20,8 @@ void Logger::Log(const std::string& msg, bool time)
 
 	//로그를 파일에 저장
 	std::cout << logMsg << std::endl;
-	std::ofstream logFile(LogFileName[LOG_NORMAL], std::ios::app);
-	logFile << logMsg << std::endl;
+	//std::ofstream logFile(LogFileName[LOG_NORMAL], std::ios::app);
+	//logFile << logMsg << std::endl;
 }
 
 void Logger::WsaLog(const std::string& msg, int errNo)

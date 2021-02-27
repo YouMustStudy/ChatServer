@@ -56,6 +56,16 @@ void ChatServer::Run()
 				sessionTable[session.first] = session.second;
 			}
 			delete stocks;
+
+			//다시 재설정.
+			FD_ZERO(&masterFdSet);
+			FD_SET(m_listener, &masterFdSet);
+			maxFd = m_listener;
+			for (const auto& session : sessionTable)
+			{
+				FD_SET(session.first, &masterFdSet);
+				maxFd = max(session.first, maxFd);
+			}
 		}
 
 		// -1은 ListenSocket을 고려한 것.
@@ -149,7 +159,15 @@ void ChatServer::Run()
 
 						//주어진 버퍼에서 순차적으로 데이터 삽입
 						std::string& userBuffer = sessionTable[readySoc].buffer;
-						size_t prevPos = max(0, userBuffer.size() - 1);
+						size_t prevPos;
+						if (false == userBuffer.empty())
+						{
+							prevPos = userBuffer.size() - 1;
+						}
+						else
+						{
+							prevPos = 0;
+						}
 						for (int i = 0; i < recvLength; ++i)
 						{
 							if (buffer[i] == VK_BACK) //백스페이스는 기존 데이터에서 한 글자를 뺀다.
@@ -248,7 +266,7 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 		if (jobPtr->cmd == CMD_DECREASE)
 		{
 			g_userManager.DecreaseUser(jobPtr->socket);
-			Logger::Log("DecreaseUser");
+			//Logger::Log("DecreaseUser");
 			return;
 		}
 
@@ -256,7 +274,6 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 		if (nullptr != user)
 		{
 			const std::vector<std::string>& data = jobPtr->data;
-			Logger::Log("[USER SEND] " + user->m_addr + " " + user->m_name + " " + data[0]);
 			//로그인, 명령어 여부에 따라 이후 처리 분기
 			if (true == user->m_login)
 			{
@@ -587,14 +604,13 @@ void ChatServer::WorkerThread()
 
 						if (nullptr != curJob)
 						{
+							//Logger::Log("[USER SEND] " + *curJob->data);
 							switch (curJob->cmd)
 							{
 							case CMD_CONNECT:
-								Logger::Log("Posting UserJob - Connect");
 								PushUserJob(new UserJob(CMD_CONNECT, curJob->socket, 0, curJob->data));
 								break;
 							case CMD_DECREASE:
-								Logger::Log("Posting UserJob - DisConn");
 								PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, 0));
 								break;
 
@@ -605,12 +621,10 @@ void ChatServer::WorkerThread()
 								int cmd = m_cmdParser.Parse(*curJob->data, param);
 								if (false == param.empty())
 								{
-									Logger::Log("Posting UserJob - Process");
 									PushUserJob(new UserJob(cmd, curJob->socket, 0, param));
 								}
 								else
 								{
-									Logger::Log("Posting UserJob - Process");
 									PushUserJob(new UserJob(cmd, curJob->socket, 0, curJob->data));
 								}
 							}
@@ -622,15 +636,12 @@ void ChatServer::WorkerThread()
 									int sendLength = send(curJob->socket, curJob->data->c_str(), static_cast<int>(curJob->data->size()), 0);
 									if (sendLength == 0) //종료처리
 									{
-										Logger::Log("Send Done, Posting Decrease");
 										PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
 									}
 									else if (sendLength < 0)
 									{
-										Logger::Log("Send Done, Posting Decrease");
 										PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
 									}
-									Logger::Log("Send Done, Posting Decrease");
 									PushUserJob(new UserJob(CMD_DECREASE, curJob->socket, 0, curJob->data));
 								}
 								break;
@@ -698,7 +709,15 @@ void ChatServer::RecvThread(SessionTable* sessions)
 
 						//주어진 버퍼에서 순차적으로 데이터 삽입
 						std::string& userBuffer = sessionTable[readySoc].buffer;
-						size_t prevPos = max(0, userBuffer.size() - 1);
+						size_t prevPos;
+						if (false == userBuffer.empty())
+						{
+							prevPos = userBuffer.size() - 1;
+						}
+						else
+						{
+							prevPos = 0;
+						}
 						for (int i = 0; i < recvLength; ++i)
 						{
 							if (buffer[i] == VK_BACK) //백스페이스는 기존 데이터에서 한 글자를 뺀다.
@@ -749,7 +768,7 @@ void ChatServer::PushThreadJob(MainJob* jobPtr)
 
 void ChatServer::PushUserJob(UserJob* jobPtr)
 {
-	Logger::Log("ENQUE " + std::to_string(jobPtr->cmd));
+	//Logger::Log("ENQUE " + std::to_string(jobPtr->cmd));
 	if (nullptr != jobPtr)
 	{
 		if (0 != m_userJobCnt.fetch_add(1))
@@ -762,7 +781,7 @@ void ChatServer::PushUserJob(UserJob* jobPtr)
 			int remainJob = m_userJobCnt;
 			int left;
 			UserJob* newJob = nullptr;
-			Logger::Log("		Flush Start " + std::to_string(thread_id));
+			//Logger::Log("		Flush Start " + std::to_string(thread_id));
 			do {
 				for (left = 0; left < remainJob; ++left)
 				{
@@ -772,7 +791,7 @@ void ChatServer::PushUserJob(UserJob* jobPtr)
 					newJob = nullptr;
 				}
 			} while (remainJob != m_userJobCnt.fetch_sub(remainJob));
-			Logger::Log("		Flush End " + std::to_string(thread_id));
+			//Logger::Log("		Flush End " + std::to_string(thread_id));
 		}
 	}
 }
