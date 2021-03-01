@@ -251,8 +251,8 @@ bool ChatServer::InitLobby()
 
 void ChatServer::ProcessPacket(const UserJob* jobPtr)
 {
-	static std::string alreadyLoginMsg{ "이미 로그인되어있습니다." };
-	static std::string plzLoginMsg{ "공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	static std::string alreadyLoginMsg{ "[에러] 이미 로그인되어있습니다." };
+	static std::string plzLoginMsg{ "[에러] 공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 
 	if (nullptr != jobPtr) {
@@ -266,7 +266,6 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 		if (jobPtr->cmd == CMD_DECREASE)
 		{
 			g_userManager.DecreaseUser(jobPtr->socket);
-			//Logger::Log("DecreaseUser");
 			return;
 		}
 
@@ -344,8 +343,8 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 
 void ChatServer::ProcessLogin(User* user, const std::string& userName)
 {
-	static std::string errMsg{ "[로그인 실패] ID가 중복됩니다." };
-	static std::string longIdMsg{ "[로그인 실패] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
+	static std::string errMsg{ "[에러] ID가 중복됩니다." };
+	static std::string longIdMsg{ "[에러] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
 
 	if (nullptr != user)
 	{
@@ -359,6 +358,7 @@ void ChatServer::ProcessLogin(User* user, const std::string& userName)
 			//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
 			if (true == g_userManager.Login(user->m_socket, userName))
 			{
+				user->SendChat("[로그인]");
 				ProcessHelp(user);
 				Logger::Log("[USER LOGIN] " + user->m_addr + " " + user->m_name);
 				g_roomManager.Enter(user->m_socket, user->m_name, LOBBY_INDEX);
