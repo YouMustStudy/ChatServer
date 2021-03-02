@@ -251,8 +251,8 @@ bool ChatServer::InitLobby()
 
 void ChatServer::ProcessPacket(const UserJob* jobPtr)
 {
-	static std::string alreadyLoginMsg{ "[에러] 이미 로그인되어있습니다." };
-	static std::string plzLoginMsg{ "[에러] 공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
+	static std::string alreadyLoginMsg{ "[에러]이미 로그인되어있습니다." };
+	static std::string plzLoginMsg{ "[에러]공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 	std::string welcomeMsg{ "=====================\r\nWelcome To ChatServer\r\n=====================\r\n공백 없이 " + std::to_string(MAX_IDLENGTH) + "바이트 이하 아이디로 로그인을 해주세요.\r\n/login [ID]" };
 
 	if (nullptr != jobPtr) {
@@ -343,8 +343,8 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 
 void ChatServer::ProcessLogin(User* user, const std::string& userName)
 {
-	static std::string errMsg{ "[에러] ID가 중복됩니다." };
-	static std::string longIdMsg{ "[에러] ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
+	static std::string errMsg{ "[에러]ID가 중복됩니다." };
+	static std::string longIdMsg{ "[에러]ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
 
 	if (nullptr != user)
 	{
@@ -358,11 +358,10 @@ void ChatServer::ProcessLogin(User* user, const std::string& userName)
 			//유저 테이블에 추가한 후 도움말 메세지 출력, 로비에 입장.
 			if (true == g_userManager.Login(user->m_socket, userName))
 			{
-				user->SendChat("[로그인]");
-				ProcessHelp(user);
 				Logger::Log("[USER LOGIN] " + user->m_addr + " " + user->m_name);
 				g_roomManager.Enter(user->m_socket, user->m_name, LOBBY_INDEX);
 				user->m_room = LOBBY_INDEX;
+				ProcessHelp(user);
 				return;
 			}
 			user->SendChat(errMsg);
@@ -385,9 +384,9 @@ void ChatServer::ProcessChat(User* sender, const std::string& msg)
 
 void ChatServer::ProcessJoin(User* user, int roomIdx)
 {
-	static std::string manyPeopleMsg{ "인원수 초과로 입장할 수 없습니다." };
-	static std::string alreadyExistMsg{ " 현재 있는 방입니다." };
-	static std::string noExistMsg{ " 없는 방번호입니다." };
+	static std::string manyPeopleMsg{ "[에러]인원수 초과로 입장할 수 없습니다." };
+	static std::string alreadyExistMsg{ "[에러]현재 있는 방입니다." };
+	static std::string noExistMsg{ "[에러]없는 방번호입니다." };
 
 	if (nullptr != user)
 	{
@@ -422,7 +421,7 @@ void ChatServer::ProcessJoin(User* user, int roomIdx)
 
 void ChatServer::ProcessQuit(User* user)
 {
-	static std::string errMsg{ " 로비에서는 나가실 수 없습니다." };
+	static std::string errMsg{ "[에러]로비에서는 나가실 수 없습니다." };
 	if (nullptr != user)
 	{
 		//같은 방에는 입장이 불가하다.
@@ -442,9 +441,9 @@ void ChatServer::ProcessQuit(User* user)
 
 void ChatServer::ProcessMsg(User* sender, const std::string& receiverName, const std::string& msg)
 {
-	static std::string cantSendSamePeopleMsg{ " 본인에게는 전송할 수 없습니다." };
-	static std::string cantFindPeopleMsg{ " 유저를 찾을 수 없습니다." };
-	static std::string noMsg{ " 공백 메세지는 전송할 수 없습니다." };
+	static std::string cantSendSamePeopleMsg{ "[에러]본인에게는 전송할 수 없습니다." };
+	static std::string cantFindPeopleMsg{ "[에러]유저를 찾을 수 없습니다." };
+	static std::string noMsg{ "[에러]공백 메세지는 전송할 수 없습니다." };
 
 	if (nullptr != sender)
 	{
@@ -520,8 +519,8 @@ void ChatServer::ProcessGetAllUserList(User* user)
 
 void ChatServer::ProcessCreateRoom(User* user, const std::string& roomName, int maxUser)
 {
-	static std::string errMsg{ " 방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
-	static std::string failMakeRoomMsg{ "방 생성에 실패하였습니다." };
+	static std::string errMsg{ "[에러]방의 최대인원 수는 " + std::to_string(MINUSER_NUM) + " 이상, " + std::to_string(MAXUSER_NUM) + " 이하이어야 합니다." };
+	static std::string failMakeRoomMsg{ "[에러]방 생성에 실패하였습니다." };
 	if (nullptr != user)
 	{
 		if (MINUSER_NUM > maxUser ||
@@ -675,7 +674,7 @@ void ChatServer::RecvThread(SessionTable* sessions)
 			maxFd = max(session.first, maxFd);
 		}
 
-		char buffer[BUF_SIZE + 1];
+		char buffer[BUF_SIZE + 1] = { 0, };
 		while (SOCKET_LOWER_BOUND < sessionTable.size())
 		{
 			copyFdSet = masterFdSet;

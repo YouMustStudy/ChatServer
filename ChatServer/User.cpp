@@ -9,6 +9,7 @@ User::User(SOCKET soc, std::string addr) : m_socket(soc), m_addr(addr)
 
 void User::SendChat(const std::string &msg)
 {
+	static std::string suffix = std::string("\r\n") + char(5);
 	//만료된 소켓에는 전송하지 않는다.
 	if (INVALID_SOCKET == m_socket)
 	{
@@ -18,7 +19,7 @@ void User::SendChat(const std::string &msg)
 
 	//참조카운트 증가.
 	++m_refCnt;
-	std::string completeMsg = msg + "\r\n";
+	std::string completeMsg = msg + suffix;
 	//SendJob 포스팅.
 	g_chatServer.PushThreadJob(new MainJob{ CMD_SEND, m_socket, new std::string((completeMsg))});
 }

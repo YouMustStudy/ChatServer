@@ -18,6 +18,8 @@ bool Room::Enter(SOCKET socket, const std::string& name)
 	{
 		m_userList.emplace_back(UserInfo{ socket, name });
 		m_userTable.emplace(socket, m_userList.size() - 1);
+		g_userManager.SendMsg(socket, "[방입장]" + m_name);
+		g_userManager.SendMsg(socket, GetUserList());
 		NotifyAll("Welcome " + name + "!!");
 		return true;
 	}
@@ -66,13 +68,13 @@ void Room::SendChat(SOCKET socket, const std::string& msg) const
 	if (0 != m_userTable.count(socket))
 	{
 		size_t userPos = m_userTable.at(socket);
-		std::string completeMsg(m_userList[userPos].name + " " + msg);
+		std::string completeMsg(m_userList[userPos].name + " : " + msg);
 		for (auto& userInfo : m_userList)
 		{
-			if (userInfo.socket != socket) //송신자한테는 전송 안함.
-			{
+			//if (userInfo.socket != socket) //송신자한테는 전송 안함.
+			//{
 				g_userManager.SendMsg(userInfo.socket, completeMsg);
-			}
+			//}
 		}
 	}
 }
@@ -84,7 +86,7 @@ std::string Room::GetUserList()
 	// [zipzip]
 	// [hungry]
 	// ...
-	std::string userNameList{ "==방 참여자 목록==\r\n" };
+	std::string userNameList{ "[유저목록]\r\n" };
 	//컨테이너를 순회하면서 이름 수집.
 	for (const UserInfo& user : m_userList)
 	{
@@ -168,7 +170,7 @@ void RoomManager::DestroyRoom(int idx)
 
 std::string RoomManager::GetRoomList()
 {
-	std::string roomNameList{ "==방 목록==\r\n" };
+	std::string roomNameList{ "[방 목록]\r\n" };
 	//m_roomList는 RoomPtr의 vector, 그대로 순회하면 된다.
 	for (const auto& room : m_roomList)
 	{
