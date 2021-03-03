@@ -20,7 +20,7 @@ bool Room::Enter(SOCKET socket, const std::string& name)
 		m_userTable.emplace(socket, m_userList.size() - 1);
 		g_userManager.SendMsg(socket, "[방입장]" + m_name);
 		g_userManager.SendMsg(socket, GetUserList());
-		NotifyAll("Welcome " + name + "!!");
+		NotifyAll("[유저입장]" + name);
 		return true;
 	}
 	// 최대인원 초과로 입장 불가 시 false 반환.
@@ -46,7 +46,7 @@ size_t Room::Leave(SOCKET socket)
 
 		if (false == m_userList.empty())
 		{
-			NotifyAll("ByeBye " + userName); // 유저의 퇴장을 알림
+			NotifyAll("[유저퇴장]" + userName); // 유저의 퇴장을 알림
 		}
 	}
 	return m_userList.size();
@@ -54,11 +54,10 @@ size_t Room::Leave(SOCKET socket)
 
 void Room::NotifyAll(const std::string& msg)
 {
-	//[ROOM NOTIFY] - 메세지
-	std::string completeMsg(std::string("[ROOM NOTIFY] - ") + msg);
+	//방 내 모든 유저에게 메세지 발송
 	for (auto& userInfo : m_userList)
 	{
-		g_userManager.SendMsg(userInfo.socket, completeMsg);
+		g_userManager.SendMsg(userInfo.socket, msg);
 	}
 }
 
