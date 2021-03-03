@@ -550,7 +550,16 @@ void ChatServer::ProcessHelp(User* user)
 {
 	//도움말 메세지 전송
 	static std::string helpCmd{
-"\r\n== 명령어 목록 == \r\n\
+"[도움말]\r\n\
+[도움] /help\r\n\
+[입장] /join [방번호]\r\n\
+[퇴장] /quit\r\n\
+[쪽지] /msg [상대방] [메세지]\r\n\
+[방 생성] /create [방이름] [최대인원]\r\n\
+[서버 내 유저 목록] /alluserlist\r\n" };
+
+	/*static std::string helpCmd{
+"\r\n[도움말]\r\n\
 [도움] /help\r\n\
 [입장] /join [방번호]\r\n\
 [퇴장] /quit\r\n\
@@ -558,7 +567,8 @@ void ChatServer::ProcessHelp(User* user)
 [방 생성] /create [방이름] [최대인원]\r\n\
 [방 목록] /roomlist\r\n\
 [방 내 유저 목록] /userlist\r\n\
-[서버 내 유저 목록] /alluserlist\r\n" };
+[서버 내 유저 목록] /alluserlist\r\n" };*/
+
 	user->SendChat(helpCmd);
 }
 
