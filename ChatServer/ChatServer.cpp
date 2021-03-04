@@ -343,8 +343,8 @@ void ChatServer::ProcessPacket(const UserJob* jobPtr)
 
 void ChatServer::ProcessLogin(User* user, const std::string& userName)
 {
-	static std::string errMsg{ "[에러]ID가 중복됩니다." };
-	static std::string longIdMsg{ "[에러]ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
+	static std::string errMsg{ "[로그인에러]ID가 중복됩니다." };
+	static std::string longIdMsg{ "[로그인에러]ID는 " + std::to_string(MAX_IDLENGTH) + "바이트 이하여야 합니다." };
 
 	if (nullptr != user)
 	{
