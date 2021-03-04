@@ -475,12 +475,14 @@ void ChatServer::ProcessMsg(User* sender, const std::string& receiverName, const
 				return;
 			}
 			//아니면 정상전송
-			receiver->SendChat("[MESSAGE FROM] " + sender->m_name + " " + noBackWhiteSpaceMsg);
+			receiver->SendChat("[메세지] " + sender->m_name + " : " + noBackWhiteSpaceMsg);
+			sender->SendChat("[메세지] " + sender->m_name + " : " + noBackWhiteSpaceMsg);
 			return;
 		}
 		else
 		{
-			receiver->SendChat("[MESSAGE FROM] " + sender->m_name + " " + msg);
+			receiver->SendChat("[메세지] " + sender->m_name + " : " + msg);
+			sender->SendChat("[메세지] " + sender->m_name + " : " + msg);
 		}
 	}
 }

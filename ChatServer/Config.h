@@ -4,7 +4,7 @@ constexpr int BUF_SIZE = 1024;				///< RECVThread용 버퍼 크기.
 constexpr int USERBUF_SIZE = 2048;			///< 엔터 없이 최대한 저장할 수 있는 유저의 데이터 길이.
 constexpr int MAX_LOBBY_SIZE = 10000;		///< 로비의 유저테이블 시작 크기.
 constexpr int MAX_RESERVE_USERSIZE = 100;	///< 방 생성 시 예약할 유저의 최대 크기(vector.reserve())
-constexpr int WORKERTHREAD_NUM = 5;			///< 작업자 스레드의 갯수
+constexpr int WORKERTHREAD_NUM = 8;			///< 작업자 스레드의 갯수
 constexpr int SELECT_TIMEOUT = 500;			///< 메인 listen스레드 타임아웃 간격(ms).
 constexpr int SOCKET_LOWER_BOUND = 20;		///< 해당 소켓 갯수가 값 이하면 recvThread가 작동을 중지하고 메인스레드와 합쳐짐.
 
